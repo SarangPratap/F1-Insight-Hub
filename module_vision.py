@@ -67,7 +67,7 @@ class BaseComponent:
 
 
 class LeaderboardComponent(BaseComponent):
-    """Display race leaderboard with positions and driver info"""
+    """Refactored Leaderboard with clean Arcade 3.0+ syntax"""
 
     def __init__(self, x: int = 20, width: int = 240, visible: bool = True):
         self.x = x
@@ -76,94 +76,146 @@ class LeaderboardComponent(BaseComponent):
         self.entries = []
         self.selected_drivers = set()
 
+        self.row_height = 24  # Increased slightly for better spacing
+        self.header_height = 40
+        self.padding = 10
+
     def set_entries(self, entries: List[Dict[str, Any]]):
-        """Update leaderboard entries"""
         self.entries = entries
 
     def on_resize(self, window):
-        """Handle window resize"""
+        """Dynamic positioning relative to window edge"""
         self.x = max(20, window.width - UI_RIGHT_MARGIN + 12)
 
     def draw(self, window):
-        """Draw the leaderboard"""
         if not self.visible or not self.entries:
             return
 
-        y = window.height - 60
+        # 1. Calculate Layout Constants
+        top_y = window.height - 60
+        content_height = len(self.entries) * self.row_height
+        total_height = self.header_height + content_height + 10
 
-        # Draw background panel using Arcade 3.0+ syntax
-        panel_rect = arcade.rect.XYWH(
-            self.x + self.width / 2,
-            y - len(self.entries) * 20,
-            self.width,
-            len(self.entries) * 40 + 40,
+        # Center coordinates for XYWH rectangles (Arcade 3.x uses center-based rects)
+        center_x = self.x + (self.width / 2)
+        center_y = top_y - (total_height / 2)
+
+        # 2. Draw Background Panel (Single Call)
+        panel_rect = arcade.rect.XYWH(center_x, center_y, self.width, total_height)
+        arcade.draw_rect_filled(panel_rect, (20, 20, 25, 220))  # Glassmorphism dark
+        arcade.draw_rect_outline(panel_rect, (255, 255, 255, 40), border_width=1)
+
+        # 3. Draw Header
+        header_y = top_y - 20
+        # Red Accent Bar
+        arcade.draw_rect_filled(
+            arcade.rect.XYWH(self.x + 4, header_y, 4, 24), (255, 40, 40)
         )
-        arcade.draw_rect_filled(panel_rect, (40, 40, 45, 200))
-
-        # Draw header
         arcade.draw_text(
-            "LEADERBOARD", self.x + 10, y, arcade.color.WHITE, 14, bold=True
+            "LEADERBOARD",
+            self.x + 18,
+            header_y,
+            arcade.color.WHITE,
+            14,
+            bold=True,
+            italic=True,
+            anchor_y="center",
         )
-        y -= 30
 
-        # Draw entries
-        for entry in self.entries:
-            pos = entry.get("position", 0)
+        # 4. Draw Rows
+        list_top_y = top_y - self.header_height
+
+        for i, entry in enumerate(self.entries):
+            # Row Center Y
+            row_y = list_top_y - (i * self.row_height) - (self.row_height / 2)
+
             driver = entry.get("driver", "???")
-            lap = entry.get("lap", 0)
-            tyre = get_tyre_compound_str(entry.get("tyre", -1))
+            driver_color = entry.get("color", arcade.color.WHITE)
+            tyre_str = get_tyre_compound_str(entry.get("tyre", -1))
+            tyre_color = get_tyre_color(tyre_str)
 
-            # Highlight if selected
+            # Highlight Selection or Zebra Striping
             if driver in self.selected_drivers:
-                highlight_rect = arcade.rect.XYWH(
-                    self.x + self.width / 2, y - 10, self.width - 10, 22
+                row_rect = arcade.rect.XYWH(
+                    center_x, row_y, self.width - 4, self.row_height - 2
                 )
-                arcade.draw_rect_filled(highlight_rect, (225, 6, 0, 100))
+                arcade.draw_rect_filled(row_rect, (225, 6, 0, 80))
+            elif i % 2 == 0:
+                row_rect = arcade.rect.XYWH(
+                    center_x, row_y, self.width - 4, self.row_height - 2
+                )
+                arcade.draw_rect_filled(row_rect, (255, 255, 255, 10))
 
-            # Position number
+            # Data Points
             arcade.draw_text(
-                f"P{pos}", self.x + 5, y, arcade.color.WHITE, 12, bold=True
+                f"P{entry.get('position', 0)}",
+                self.x + 10,
+                row_y,
+                arcade.color.GOLD if i == 0 else arcade.color.WHITE,
+                11,
+                bold=True,
+                anchor_y="center",
             )
 
-            # Driver code
-            color = entry.get("color", (255, 255, 255))
-            arcade.draw_text(driver, self.x + 40, y, color, 12, bold=True)
+            arcade.draw_text(
+                driver.upper(),
+                self.x + 45,
+                row_y,
+                driver_color,
+                12,
+                bold=True,
+                anchor_y="center",
+            )
 
-            # Lap info
-            arcade.draw_text(f"L{lap}", self.x + 100, y, arcade.color.LIGHT_GRAY, 10)
-
-            # Tyre compound
-            tyre_color = get_tyre_color(tyre)
-            arcade.draw_circle_filled(self.x + 150, y + 6, 6, tyre_color)
-            arcade.draw_text(tyre[:1], self.x + 165, y, arcade.color.WHITE, 10)
-
-            y -= 22
+            # Tyre Visual
+            tyre_x = (
+                self.x + self.width - 30
+            )  #  increase the constant to move tyre icon left -30 on x axis for me
+            arcade.draw_circle_filled(tyre_x, row_y, 12, (10, 10, 10))
+            arcade.draw_circle_outline(tyre_x, row_y, 9.5, tyre_color, border_width=2)
+            arcade.draw_text(
+                tyre_str[:1],
+                tyre_x,
+                row_y,
+                arcade.color.WHITE,
+                10,
+                bold=True,
+                anchor_x="center",
+                anchor_y="center",
+            )
 
     def on_mouse_press(
         self, window, x: float, y: float, button: int, modifiers: int
     ) -> bool:
-        """Handle mouse clicks on leaderboard entries"""
-        if not self.visible:
+        if not self.visible or not self.entries:
             return False
 
-        y_pos = window.height - 90
+        # 1. Horizontal Boundary Check
+        if not (self.x <= x <= self.x + self.width):
+            return False
 
-        for entry in self.entries:
-            if self.x <= x <= self.x + self.width and y_pos - 11 <= y <= y_pos + 11:
+        list_start_y = window.height - 60 - self.header_height
+
+        # 2. Iterate through rows to find the click target
+        for i, entry in enumerate(self.entries):
+            row_top = list_start_y - (i * self.row_height)
+            row_bottom = row_top - self.row_height
+
+            if row_bottom <= y <= row_top:
                 driver = entry.get("driver")
+                if driver:
+                    # Check if the clicked driver is already the one selected
+                    was_selected = driver in self.selected_drivers
 
-                # Toggle selection
-                if driver in self.selected_drivers:
-                    self.selected_drivers.remove(driver)
-                else:
-                    if modifiers & arcade.key.MOD_SHIFT:
-                        self.selected_drivers.add(driver)
-                    else:
-                        self.selected_drivers.clear()
-                        self.selected_drivers.add(driver)
-                return True
+                    # SINGLE SELECTION: Clear all previous highlights
+                    self.selected_drivers.clear()
 
-            y_pos -= 22
+                    # If it wasn't selected before, select it now.
+                    # (This allows you to click a driver once to highlight, and again to un-highlight)
+                    if not was_selected:
+                        self.selected_drivers.add(driver)
+
+                return True  # Event handled, stop checking other rows
 
         return False
 
@@ -381,34 +433,79 @@ class DriverInfoComponent(BaseComponent):
 
 
 class LegendComponent(BaseComponent):
-    """Display controls legend"""
+    """Display controls legend anchored to the bottom-right"""
 
-    def __init__(self, x: int = 20, visible: bool = True):
-        self.x = x
+    def __init__(self, visible: bool = True):
+        # We drop the 'x' argument because position is now dynamic
         self.visible = visible
+        # Define the static dimensions of the panel for layout math
+        self.width = 180
+        self.height = 160
+        # Placeholder for calculated position
+        self.x = 0
+        self.y = 0
+
+    def on_resize(self, window):
+        """Calculate position relative to the bottom-right corner"""
+        padding = 20  # Space from the edge of the window
+        self.x = window.width - self.width - padding
+        self.y = padding  # Start 20 pixels up from the bottom edge (y=0 in Arcade)
 
     def draw(self, window):
         """Draw legend"""
         if not self.visible:
             return
 
-        y = window.height - 300
+        # Use the calculated self.x and self.y
+        bottom_left_x = self.x
+        # The starting Y coordinate for the text block (top of the panel area)
+        current_y = self.y + self.height - 30
 
-        arcade.draw_text("CONTROLS", self.x, y, arcade.color.CYAN, 12, bold=True)
-        y -= 20
-        arcade.draw_text("SPACE: Pause/Resume", self.x, y, arcade.color.WHITE, 10)
-        y -= 16
-        arcade.draw_text("←/→: Rewind/Forward", self.x, y, arcade.color.WHITE, 10)
-        y -= 16
-        arcade.draw_text("↑/↓: Speed Up/Down", self.x, y, arcade.color.WHITE, 10)
-        y -= 16
-        arcade.draw_text("R: Restart", self.x, y, arcade.color.WHITE, 10)
-        y -= 16
-        arcade.draw_text("D: Toggle DRS Zones", self.x, y, arcade.color.WHITE, 10)
-        y -= 16
-        arcade.draw_text("L: Toggle Labels", self.x, y, arcade.color.WHITE, 10)
-        y -= 16
-        arcade.draw_text("H: Toggle Help", self.x, y, arcade.color.WHITE, 10)
+        # Draw Background Panel
+        arcade.draw_rect_filled(
+            arcade.rect.XYWH(
+                bottom_left_x + self.width / 2,  # Center X
+                self.y + self.height / 2,  # Center Y
+                self.width,
+                self.height,
+            ),
+            (20, 20, 25, 220),  # Semi-transparent dark background
+        )
+
+        # Draw Header
+        arcade.draw_text(
+            "CONTROLS", bottom_left_x + 10, current_y, arcade.color.CYAN, 12, bold=True
+        )
+        current_y -= 25  # Move down for the first list item
+
+        # Draw list items
+        arcade.draw_text(
+            "SPACE: Pause/Resume", bottom_left_x + 10, current_y, arcade.color.WHITE, 10
+        )
+        current_y -= 16
+        arcade.draw_text(
+            "←/→: Rewind/Forward", bottom_left_x + 10, current_y, arcade.color.WHITE, 10
+        )
+        current_y -= 16
+        arcade.draw_text(
+            "↑/↓: Speed Up/Down", bottom_left_x + 10, current_y, arcade.color.WHITE, 10
+        )
+        current_y -= 16
+        arcade.draw_text(
+            "R: Restart", bottom_left_x + 10, current_y, arcade.color.WHITE, 10
+        )
+        current_y -= 16
+        arcade.draw_text(
+            "D: Toggle DRS Zones", bottom_left_x + 10, current_y, arcade.color.WHITE, 10
+        )
+        current_y -= 16
+        arcade.draw_text(
+            "L: Toggle Labels", bottom_left_x + 10, current_y, arcade.color.WHITE, 10
+        )
+        current_y -= 16
+        arcade.draw_text(
+            "H: Toggle Help", bottom_left_x + 10, current_y, arcade.color.WHITE, 10
+        )
 
 
 class SessionInfoComponent(BaseComponent):
@@ -1061,6 +1158,7 @@ class F1RaceReplayWindow(arcade.Window):
         self._calculate_scale_and_offsets()
         self.leaderboard_comp.on_resize(self)
         self.progress_bar_comp.on_resize(self)
+        self.legend_comp.on_resize(self)
 
 
 # ============================================================================

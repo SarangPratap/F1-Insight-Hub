@@ -253,7 +253,7 @@ def _process_single_driver(args):
 
         # Update total distance for next lap
         if len(d_lap) > 0:
-            total_dist_so_far += d_lap[-1]
+            total_dist_so_far += d_lap[-1]  # Last distance value of the lap
 
     if not t_all:
         return None
