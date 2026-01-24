@@ -1,0 +1,29 @@
+# Core F1 Data & Analysis
+fastf1>=3.0.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Visualization - Arcade
+arcade>=2.6.17
+
+# GUI - Qt6
+PySide6>=6.5.0
+
+# Data Processing & ML (for future modules)
+scikit-learn>=1.3.0
+scipy>=1.11.0
+
+# Plotting & Charts (for Analytics module)
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# CLI Utilities
+questionary>=2.0.0
+rich>=13.0.0
+
+# Performance
+numba>=0.57.0
+
+# Utilities
+python-dateutil>=2.8.0
+pytz>=2023.3

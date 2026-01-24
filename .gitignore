@@ -2,9 +2,14 @@
 __pycache__/
 *.py[codz]
 *$py.class
+data/cache/**/*
 
+# But keep the folders themselves (if you use .gitkeep)
+!data/cache/**/.gitkeep
 # C extensions
 *.so
+
+
 
 # Distribution / packaging
 .Python
