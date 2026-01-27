@@ -1,16 +1,6 @@
-"""
-F1 INSIGHT HUB - Vision Module
-Race and Qualifying replay with advanced telemetry visualization
-Compatible with Arcade 3.0+ Modern API
-
-This module provides real-time race replay visualization with:
-- Track rendering with DRS zones
-- Driver position tracking
-- Telemetry display (speed, gear, throttle, brake, DRS)
-- Weather information
-- Race events timeline
-- Interactive controls
-"""
+# ============================================================================
+#F1 INSIGHT HUB - RaceVision
+# ============================================================================
 
 import os
 import sys
@@ -19,6 +9,7 @@ import arcade.color
 import numpy as np
 import argparse
 from typing import List, Optional, Tuple, Dict, Any
+import time
 
 from config import (
     FPS,
@@ -292,9 +283,9 @@ class WeatherComponent(BaseComponent):
 
 
 class RaceProgressBarComponent(BaseComponent):
-    """Progress bar showing race completion and events"""
+    """Vertical progress bar anchored to the left side"""
 
-    # Event type constants
+    # Event type constants (Same as before)
     EVENT_DNF = "dnf"
     EVENT_YELLOW_FLAG = "yellow"
     EVENT_SAFETY_CAR = "safety_car"
@@ -303,133 +294,174 @@ class RaceProgressBarComponent(BaseComponent):
 
     def __init__(
         self,
-        center_x: float = 640,
-        y: float = 30,
-        width: float = 800,
-        height: float = 20,
+        x: float = 30,      # Fixed X position (Left side)
+        width: float = 16,  # Thickness of the bar
         visible: bool = True,
     ):
-        self.center_x = center_x
-        self.y = y
+        self.x = x
         self.width = width
-        self.height = height
         self.visible = visible
-        self.progress = 0.0  # 0.0 to 1.0
+        self.progress = 0.0
         self.events = []
+        
+        # Dimensions calculated in on_resize
+        self.height = 0
+        self.center_y = 0
 
     def set_events(self, events: List[Dict[str, Any]]):
-        """Set race events for display"""
         self.events = events
 
     def set_progress(self, progress: float):
-        """Set progress (0.0 to 1.0)"""
         self.progress = max(0.0, min(1.0, progress))
 
     def on_resize(self, window):
-        """Handle window resize"""
-        self.center_x = window.width / 2
-        self.width = min(800, window.width - 400)
+        """Resize vertically based on window height"""
+        # Leave 60px padding at top and bottom
+        vertical_padding = 60
+        self.height = window.height - (vertical_padding * 2)
+        self.center_y = window.height / 2
 
     def draw(self, window):
-        """Draw progress bar"""
         if not self.visible:
             return
 
-        left = self.center_x - self.width / 2
+        # Calculate coordinates
+        bottom_y = self.center_y - (self.height / 2)
+        
+        # 1. Draw Background Track (Vertical)
+        bg_rect = arcade.rect.XYWH(self.x, self.center_y, self.width, self.height)
+        arcade.draw_rect_filled(bg_rect, (40, 40, 45))
+        arcade.draw_rect_outline(bg_rect, (100, 100, 100), 1)
 
-        # Draw background using Arcade 3.0+ syntax
-        bg_rect = arcade.rect.XYWH(self.center_x, self.y, self.width, self.height)
-        arcade.draw_rect_filled(bg_rect, (60, 60, 60))
+        # 2. Draw Progress Fill (Growing Upwards)
+        fill_height = self.height * self.progress
+        if fill_height > 0:
+            # Center of the fill rect must be calculated carefully
+            fill_center_y = bottom_y + (fill_height / 2)
+            fill_rect = arcade.rect.XYWH(self.x, fill_center_y, self.width, fill_height)
+            arcade.draw_rect_filled(fill_rect, (225, 6, 0)) # F1 Red
 
-        # Draw progress
-        progress_width = self.width * self.progress
-        if progress_width > 0:
-            progress_rect = arcade.rect.XYWH(
-                left + progress_width / 2, self.y, progress_width, self.height
-            )
-            arcade.draw_rect_filled(progress_rect, (225, 6, 0))
-
-        # Draw current position marker
-        marker_x = left + self.width * self.progress
+        # 3. Draw Current Position Marker (Triangle pointing Right)
+        marker_y = bottom_y + fill_height
         arcade.draw_triangle_filled(
-            marker_x,
-            self.y + self.height / 2 + 10,
-            marker_x - 5,
-            self.y + self.height / 2,
-            marker_x + 5,
-            self.y + self.height / 2,
-            arcade.color.WHITE,
+            self.x + (self.width / 2) + 2, marker_y,       # Tip (Right)
+            self.x - (self.width / 2) - 4, marker_y + 5,   # Top-Left
+            self.x - (self.width / 2) - 4, marker_y - 5,   # Bottom-Left
+            arcade.color.WHITE
         )
-
-        # Draw border
-        border_rect = arcade.rect.XYWH(self.center_x, self.y, self.width, self.height)
-        arcade.draw_rect_outline(border_rect, arcade.color.WHITE, 2)
 
 
 class DriverInfoComponent(BaseComponent):
-    """Display detailed info for selected driver"""
+    """Display detailed info with Full Name, No DRS, and Gear Label"""
 
-    def __init__(self, left: int = 20, width: int = 300):
+    def __init__(self, left: int = 20, width: int = 200, driver_names: Dict = None):
         self.left = left
         self.width = width
         self.driver_data = None
         self.visible = False
+        # Store the name mapping (Abbreviation -> Full Name)
+        self.driver_names = driver_names or {}
 
     def set_driver_data(self, driver_data: Optional[Dict[str, Any]]):
-        """Set driver data to display"""
         self.driver_data = driver_data
         self.visible = driver_data is not None
 
     def draw(self, window):
-        """Draw driver info panel"""
         if not self.visible or not self.driver_data:
             return
 
-        y = window.height / 2
+        # 1. Calculate Panel Coordinates
+        panel_center_y = window.height / 2
+        panel_height = 240
+        center_x = self.left + (self.width / 2)
+        
+        # Background
+        panel_rect = arcade.rect.XYWH(center_x, panel_center_y, self.width, panel_height)
+        arcade.draw_rect_filled(panel_rect, (40, 40, 45, 230))
+        arcade.draw_rect_outline(panel_rect, (255, 255, 255, 30), 1)
 
-        # Draw background using Arcade 3.0+ syntax
-        info_rect = arcade.rect.XYWH(self.left + self.width / 2, y, self.width, 200)
-        arcade.draw_rect_filled(info_rect, (40, 40, 45, 230))
-
-        # Driver name
-        driver = self.driver_data.get("driver", "Unknown")
+        # ---------------------------------------------------------
+        # TOP SECTION: Text Info
+        # ---------------------------------------------------------
+        current_y = panel_center_y + (panel_height / 2) - 35
+        
+        # --- DRIVER NAME (Full Name) ---
+        driver_code = self.driver_data.get("driver", "???")
+        # Lookup full name, default to code if not found
+        full_name = self.driver_names.get(driver_code, driver_code)
+        
+        # Adjust font size: Smaller for full names (e.g. "Max Verstappen"), larger for codes
+        font_size = 17
+        
         arcade.draw_text(
-            driver, self.left + 10, y + 80, arcade.color.WHITE, 16, bold=True
+            full_name, 
+            self.left + 20, 
+            current_y, 
+            arcade.color.WHITE, 
+            font_size, 
+            bold=True
         )
 
-        y -= 10
+        current_y -= 45
 
-        # Speed
-        speed = self.driver_data.get("speed", 0)
-        arcade.draw_text(
-            f"Speed: {int(speed)} km/h", self.left + 10, y, arcade.color.WHITE, 12
-        )
-        y -= 20
-
-        # Gear
+        # --- SPEED (Left Side) ---
+        speed = int(self.driver_data.get("speed", 0))
+        arcade.draw_text(f"{speed}", self.left + 20, current_y, arcade.color.WHITE, 27, bold=True)
+        arcade.draw_text("km/h", self.left + 95, current_y, arcade.color.GRAY, 16)
+        
+        # --- GEAR (Right Side) ---
         gear = self.driver_data.get("gear", 0)
-        arcade.draw_text(f"Gear: {gear}", self.left + 10, y, arcade.color.WHITE, 12)
-        y -= 20
+        gear_str = str(gear) if gear > 0 else "N"
+        
+        # Gear Box Position
+        gear_x = self.left + self.width - 40
+        gear_box_y = current_y + 15
+        
+        # Box
+        arcade.draw_rect_outline(arcade.rect.XYWH(gear_x, gear_box_y, 30, 30), arcade.color.WHITE, 2)
+        
+        # Number
+        arcade.draw_text(gear_str, gear_x, gear_box_y, arcade.color.CYAN, 20, 
+                         bold=True, anchor_x="center", anchor_y="center")
+        
+        # "GEAR" Label (Below the box)
+        arcade.draw_text("GEAR", gear_x, gear_box_y - 32, arcade.color.GRAY, 9, 
+                         anchor_x="center", bold=True)
 
-        # Throttle
+        # ---------------------------------------------------------
+        # BOTTOM SECTION: Animated Pedals
+        # ---------------------------------------------------------
+        bar_width = 40
+        max_bar_height = 80
+        bars_bottom_y = panel_center_y - (panel_height / 2) + 20
+        
         throttle = self.driver_data.get("throttle", 0)
-        arcade.draw_text(
-            f"Throttle: {throttle:.0f}%", self.left + 10, y, arcade.color.WHITE, 12
-        )
-        y -= 20
-
-        # Brake
         brake = self.driver_data.get("brake", 0)
-        if brake > 0:
-            arcade.draw_text(f"Brake: {brake:.0f}%", self.left + 10, y, (255, 0, 0), 12)
-        y -= 20
 
-        # DRS status
-        drs = self.driver_data.get("drs", 0)
-        if drs >= 10:
-            arcade.draw_text(
-                "DRS: ACTIVE", self.left + 10, y, (0, 255, 0), 12, bold=True
-            )
+        # --- THROTTLE (Green) ---
+        thr_x = center_x + 30
+        # Background
+        arcade.draw_rect_filled(arcade.rect.XYWH(thr_x, bars_bottom_y + max_bar_height/2, bar_width, max_bar_height), (20, 20, 20))
+        arcade.draw_rect_outline(arcade.rect.XYWH(thr_x, bars_bottom_y + max_bar_height/2, bar_width, max_bar_height), (100, 100, 100), 1)
+        # Fill
+        thr_height = (throttle / 100) * max_bar_height
+        if thr_height > 0:
+            arcade.draw_rect_filled(arcade.rect.XYWH(thr_x, bars_bottom_y + thr_height/2, bar_width - 4, thr_height), (0, 255, 0))
+        # Label
+        arcade.draw_text("THR", thr_x, bars_bottom_y - 12, arcade.color.GRAY, 10, anchor_x="center")
+
+        # --- BRAKE (Red) ---
+        brk_x = center_x - 30
+        # Background
+        arcade.draw_rect_filled(arcade.rect.XYWH(brk_x, bars_bottom_y + max_bar_height/2, bar_width, max_bar_height), (20, 20, 20))
+        arcade.draw_rect_outline(arcade.rect.XYWH(brk_x, bars_bottom_y + max_bar_height/2, bar_width, max_bar_height), (100, 100, 100), 1)
+        # Fill
+        safe_brake = min(100, max(0, brake))
+        brk_height = (safe_brake / 100) * max_bar_height
+        if brk_height > 0:
+            arcade.draw_rect_filled(arcade.rect.XYWH(brk_x, bars_bottom_y + brk_height/2, bar_width - 4, brk_height), (255, 0, 0))
+        # Label
+        arcade.draw_text("BRK", brk_x, bars_bottom_y - 12, arcade.color.GRAY, 10, anchor_x="center")
 
 
 class LegendComponent(BaseComponent):
@@ -645,15 +677,7 @@ def build_track_from_example_lap(
 
 
 def plot_drs_zones(example_lap) -> List[Dict[str, Any]]:
-    """
-    Extract DRS zones from telemetry
-
-    Args:
-        example_lap: Telemetry data with DRS status (pandas DataFrame)
-
-    Returns:
-        List of DRS zone dictionaries with start/end coordinates
-        Empty list if no zones found or error occurs
+    """Extract DRS zones from telemetry
     """
     # Validation: Check if DRS column exists
     if "DRS" not in example_lap.columns:
@@ -795,7 +819,60 @@ def extract_race_events(
 
     return events
 
+class EventOverlayComponent(BaseComponent):
+    """Displays blinking status text at the bottom of the screen"""
 
+    def __init__(self, track_statuses):
+        self.track_statuses = track_statuses
+        self.visible = True
+
+    def draw(self, window, current_time):
+        if not self.visible or not self.track_statuses:
+            return
+
+        # 1. Find the active status for the current replay time
+        # We look for the latest status that started before 'current_time'
+        active_status = "1" # Default to Green/Normal
+        for status in self.track_statuses:
+            if status["start_time"] > current_time:
+                break
+            active_status = str(status["status"])
+
+        # 2. Determine Text and Color
+        text = ""
+        color = arcade.color.WHITE
+        
+        if active_status == "1":    # Green Flag
+            return # Don't draw anything for normal racing
+            
+        elif active_status == "2":  # Yellow Flag
+            text = "YELLOW FLAG"
+            color = (255, 255, 0)
+            
+        elif active_status == "4":  # Safety Car
+            text = "SAFETY CAR"
+            color = (255, 165, 0)   # Orange
+            
+        elif active_status == "5":  # Red Flag
+            text = "RED FLAG"
+            color = (255, 0, 0)
+            
+        elif active_status in ["6", "7"]: # VSC
+            text = "VIRTUAL SAFETY CAR"
+            color = (255, 215, 0)   # Gold
+
+        # 3. Blinking Effect (Real-time blinking, even if paused)
+        if text and (time.time() % 0.8) < 0.5: 
+            arcade.draw_text(
+                text,
+                window.width / 2,
+                30,  # Height from bottom
+                color,
+                24,  # Font size
+                anchor_x="center",
+                anchor_y="center",
+                bold=True
+            )
 # ============================================================================
 # RACE REPLAY WINDOW
 # ============================================================================
@@ -817,6 +894,7 @@ class F1RaceReplayWindow(arcade.Window):
         total_laps: Optional[int] = None,
         visible_hud: bool = True,
         session_info: Optional[Dict] = None,
+        driver_names: Optional[Dict] = None,
     ):
         """
         Initialize the race replay window
@@ -856,23 +934,25 @@ class F1RaceReplayWindow(arcade.Window):
         self._cos_rot = float(np.cos(self._rot_rad))
         self._sin_rot = float(np.sin(self._rot_rad))
 
-        self.toggle_drs_zones = True
+        self.toggle_drs_zones = False
         self.show_driver_labels = False
 
         # UI components
         self.leaderboard_comp = LeaderboardComponent(visible=visible_hud)
-        self.weather_comp = WeatherComponent(visible=visible_hud)
+        self.weather_comp = WeatherComponent(left=70,visible=visible_hud)
+        self.driver_names = driver_names or {}
         self.legend_comp = LegendComponent(visible=visible_hud)
-        self.driver_info_comp = DriverInfoComponent()
+        self.driver_info_comp = DriverInfoComponent(left=70, driver_names=self.driver_names)
         self.progress_bar_comp = RaceProgressBarComponent(visible=visible_hud)
         self.session_info_comp = SessionInfoComponent(session_info)
+        self.event_overlay_comp = EventOverlayComponent(track_statuses)
 
         # Extract and set events
         events = extract_race_events(frames, track_statuses, total_laps or 0)
         self.progress_bar_comp.set_events(events)
 
         # Build track
-        track_data = build_track_from_example_lap(example_lap)
+        track_data = build_track_from_example_lap(example_lap, track_width=350.0)
         (
             self.plot_x_ref,
             self.plot_y_ref,
@@ -967,35 +1047,56 @@ class F1RaceReplayWindow(arcade.Window):
         # Draw UI components
         if self.visible_hud:
             self._update_and_draw_ui(frame)
+            current_time = frame.get("time", 0)
+            self.event_overlay_comp.draw(self, current_time)
 
         # Draw playback info
         self._draw_playback_info(frame)
 
     def _draw_track(self):
-        """Draw the race track"""
-        # Draw center line
-        points = [
+        """Draw the race track with alternating red/white curbs"""
+        
+        # 1. Draw the Center Line (remains a continuous strip)
+        center_points = [
             self._world_to_screen(x, y)
             for x, y in zip(self.plot_x_ref, self.plot_y_ref)
         ]
-        if len(points) > 1:
-            arcade.draw_line_strip(points, (255, 255, 255, 100), 2)
+        if len(center_points) > 1:
+            arcade.draw_line_strip(center_points, (255, 255, 255, 100), 1)
 
-        # Draw inner edge
-        points_inner = [
-            self._world_to_screen(x, y) for x, y in zip(self.x_inner, self.y_inner)
-        ]
-        if len(points_inner) > 1:
-            arcade.draw_line_strip(points_inner, (200, 200, 200), 3)
+        
+        def draw_curbs(x_coords, y_coords):
+            segment_length = 4 
+            
+            points = [self._world_to_screen(x, y) for x, y in zip(x_coords, y_coords)]
+            total_points = len(points)
 
-        # Draw outer edge
-        points_outer = [
-            self._world_to_screen(x, y) for x, y in zip(self.x_outer, self.y_outer)
-        ]
-        if len(points_outer) > 1:
-            arcade.draw_line_strip(points_outer, (200, 200, 200), 3)
+            if total_points < 2:
+                return
 
-        # Draw start/finish line
+            # Loop through points in chunks
+            for i in range(0, total_points - 1, segment_length):
+                # Get the chunk of points for this segment
+                # We do i : i + segment_length + 1 to ensure lines connect seamlessly
+                segment = points[i : i + segment_length + 1]
+                
+                # Determine color based on even/odd chunk index
+                # (i // segment_length) gives us 0, 1, 2, 3...
+                if (i // segment_length) % 2 == 0:
+                    color = (255, 0, 0)      # Red
+                else:
+                    color = (255, 255, 255)  # White
+
+                # Draw this specific segment
+                arcade.draw_line_strip(segment, color, 2) # 2 is the border thickness
+
+        # ---------------------------------------------------------
+        # 2. Draw Inner and Outer Curbs using the helper
+        # ---------------------------------------------------------
+        draw_curbs(self.x_inner, self.y_inner)
+        draw_curbs(self.x_outer, self.y_outer)
+
+        # 3. Draw start/finish line (unchanged)
         if len(self.plot_x_ref) > 0:
             start_x, start_y = self._world_to_screen(
                 self.plot_x_ref.iloc[0], self.plot_y_ref.iloc[0]
@@ -1006,11 +1107,26 @@ class F1RaceReplayWindow(arcade.Window):
     def _draw_drs_zones(self):
         """Draw DRS zones on track"""
         for zone in self.drs_zones:
-            start_x, start_y = self._world_to_screen(
-                zone["start"]["x"], zone["start"]["y"]
-            )
-            end_x, end_y = self._world_to_screen(zone["end"]["x"], zone["end"]["y"])
-            arcade.draw_line(start_x, start_y, end_x, end_y, (100, 255, 100, 150), 15)
+            # 1. Get the start and end indices from the data
+            start_idx = zone["start"]["index"]
+            end_idx = zone["end"]["index"]
+
+            # 2. Collect all screen coordinates for points inside this zone
+            drs_points = []
+            
+            # We loop through every point in the reference path belonging to this zone
+            for i in range(start_idx, end_idx + 1):
+                # Get the world X, Y from the stored reference lap
+                wx = self.plot_x_ref.iloc[i]
+                wy = self.plot_y_ref.iloc[i]
+                
+                # Convert to screen coordinates
+                sx, sy = self._world_to_screen(wx, wy)
+                drs_points.append((sx, sy))
+
+            # Draw DRS zone
+            if drs_points:
+                arcade.draw_line_strip(drs_points, (100, 255, 100, 150), 10)
 
     def _draw_drivers(self, frame: Dict):
         """Draw driver positions on track"""
@@ -1027,12 +1143,7 @@ class F1RaceReplayWindow(arcade.Window):
                 arcade.draw_circle_filled(x, y, 12, (255, 255, 0, 100))
 
             # Draw car
-            arcade.draw_circle_filled(x, y, 8, color)
-            arcade.draw_circle_outline(x, y, 8, (255, 255, 255), 2)
-
-            # Draw position number
-            pos = data.get("position", "?")
-            arcade.draw_text(str(pos), x - 5, y - 5, (0, 0, 0), 10, bold=True)
+            arcade.draw_circle_filled(x, y, 5, color)
 
             # Draw driver label if enabled
             if self.show_driver_labels:
@@ -1099,16 +1210,16 @@ class F1RaceReplayWindow(arcade.Window):
         """Draw playback controls and info"""
         # Playback speed
         speed_text = f"Speed: {self.playback_speed}x"
-        arcade.draw_text(speed_text, 10, 50, arcade.color.WHITE, 12)
+        arcade.draw_text(speed_text, 70, 50, arcade.color.WHITE, 12)
 
         # Pause indicator
         if self.paused:
-            arcade.draw_text("⏸ PAUSED", 10, 30, arcade.color.YELLOW, 14, bold=True)
+            arcade.draw_text("⏸ PAUSED", 70, 30, arcade.color.YELLOW, 14, bold=True)
 
         # Current time
         current_time = frame.get("time", 0)
         time_text = format_time(current_time)
-        arcade.draw_text(time_text, 10, 10, arcade.color.WHITE, 12)
+        arcade.draw_text(time_text, 70, 10, arcade.color.WHITE, 12)
 
     def on_update(self, delta_time: float):
         """Update animation"""
@@ -1296,6 +1407,16 @@ def run_vision_module(
             "round": round_number,
         }
 
+        # Create driver name mapping (Abbreviation -> Full Name)
+        driver_names = {}
+        if hasattr(session, "drivers"):
+            for driver_id in session.drivers:
+                try:
+                    drv = session.get_driver(driver_id)
+                    driver_names[drv['Abbreviation']] = drv['FullName']
+                except:
+                    pass
+
         # Create and run window
         print("🚀 Launching visualization...")
 
@@ -1315,6 +1436,7 @@ def run_vision_module(
                 total_laps=race_data.get("total_laps", 0),
                 visible_hud=True,
                 session_info=session_info,
+                driver_names=driver_names,
             )
 
             # Signal readiness

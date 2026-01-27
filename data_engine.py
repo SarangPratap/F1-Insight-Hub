@@ -339,10 +339,6 @@ def _process_single_driver(args):
         "max_lap": driver_max_lap,
     }
 
-
-# ... continuing from Part 1 ...
-
-
 def get_race_telemetry(session, session_type="R", force_refresh=False):
     """
     Get processed race telemetry for all drivers with frame-by-frame data
