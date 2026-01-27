@@ -592,6 +592,19 @@ def get_race_telemetry(session, session_type="R", force_refresh=False):
             except:
                 pass
 
+        # Ensure weather data always has the 'weather' key for GUI icons
+        if weather_snapshot is not None:
+            # Make sure 'weather' key is present
+            if "weather" not in weather_snapshot:
+                rainfall_val = weather_snapshot.get("rainfall", 0.0)
+                humidity_val = weather_snapshot.get("humidity", 0.0)
+                if rainfall_val > 0.01:
+                    weather_snapshot["weather"] = "Rain"
+                elif humidity_val > 70:
+                    weather_snapshot["weather"] = "Cloudy"
+                else:
+                    weather_snapshot["weather"] = "Clear"
+
         frames.append(
             {
                 "time": float(t),
