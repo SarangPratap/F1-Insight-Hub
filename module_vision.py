@@ -242,7 +242,7 @@ class WeatherComponent(BaseComponent):
             "WEATHER", self.left + 10, y, arcade.color.WHITE, 12, bold=True
         )
 
-        # Draw weather icon (sun, cloud, rain) based on weather condition with animations
+        # Enhanced weather icon rendering with night support
         icon_x = self.left + 150
         icon_y = y - 10
         icon_size = 28
@@ -252,78 +252,207 @@ class WeatherComponent(BaseComponent):
         import time
         current_time = time.time()
 
-        if "rain" in weather_condition:
-            # Draw cloud with animated rain drops
-            arcade.draw_ellipse_filled(icon_x, icon_y, icon_size+10, icon_size-8, (180, 180, 190))
-            arcade.draw_ellipse_filled(icon_x-12, icon_y-6, icon_size-6, icon_size-14, (180, 180, 190))
-            arcade.draw_ellipse_filled(icon_x+12, icon_y-6, icon_size-8, icon_size-16, (180, 180, 190))
+        # Handle night conditions first (highest priority)
+        if "night" in weather_condition:
+            if "rain" in weather_condition:
+                # Night rain with darker colors
+                cloud_color = (100, 100, 120)
+                rain_color = (60, 120, 180)
+                
+                # Draw dark night clouds
+                arcade.draw_ellipse_filled(icon_x, icon_y, icon_size+10, icon_size-8, cloud_color)
+                arcade.draw_ellipse_filled(icon_x-12, icon_y-6, icon_size-6, icon_size-14, cloud_color)
+                arcade.draw_ellipse_filled(icon_x+12, icon_y-6, icon_size-8, icon_size-16, cloud_color)
+                
+                # Animated falling rain drops
+                for i, dx in enumerate([-10, 0, 10]):
+                    fall_speed = 30 + (i * 10)
+                    phase_offset = i * 0.5
+                    drop_cycle = (current_time * fall_speed + phase_offset * 100) % 40
+                    drop_start_y = icon_y - 12 - (drop_cycle * 0.3)
+                    drop_end_y = drop_start_y - 8
+                    
+                    for j in range(3):
+                        offset = j * 15
+                        arcade.draw_line(
+                            icon_x + dx, drop_start_y - offset, 
+                            icon_x + dx, drop_end_y - offset, 
+                            (*rain_color[:3], max(0, 255 - offset * 8)), 3
+                        )
+                        
+            elif "cloud" in weather_condition:
+                # Night cloudy - show dark clouds with subtle moon glow behind
+                base_color = 100
+                pulse = 1 + 0.08 * np.sin(current_time * 1.5)  # Subtle breathing
+                cloud_color = (int(base_color * pulse), int(base_color * pulse), base_color + 20)
+                
+                # Realistic moon glow behind clouds (dimmed for cloudy effect)
+                moon_pulse = 1 + 0.1 * np.sin(current_time * 1.2)  # Gentle moon pulsing
+                moon_radius = (icon_size // 2) * moon_pulse
+                moon_offset_x = icon_x + 8
+                moon_offset_y = icon_y + 5
+                
+                # Multiple glow layers for realistic moon (warm yellowish glow)
+                for glow_layer in range(3):
+                    glow_alpha = (60 - (glow_layer * 15))  # Brighter glow
+                    glow_size = moon_radius + (glow_layer * 3)
+                    arcade.draw_circle_filled(moon_offset_x, moon_offset_y, glow_size, (255, 235, 200, glow_alpha))
+                
+                # Main crescent moon body
+                main_moon_radius = moon_radius * 0.8
+                arcade.draw_circle_filled(moon_offset_x, moon_offset_y, main_moon_radius, (240, 230, 190, 180))
+                
+                # Create crescent shadow (draw darker circle to create crescent effect)
+                shadow_offset = main_moon_radius * 0.3
+                shadow_x = moon_offset_x + shadow_offset
+                shadow_y = moon_offset_y
+                shadow_radius = main_moon_radius * 0.85
+                arcade.draw_circle_filled(shadow_x, shadow_y, shadow_radius, (15, 20, 28, 200))  # Match background color
+                
+                # Subtle moon crater on visible crescent part
+                crater_x = moon_offset_x - main_moon_radius * 0.2
+                crater_y = moon_offset_y + main_moon_radius * 0.1
+                arcade.draw_circle_filled(crater_x, crater_y, 1, (200, 180, 140, 120))
+                
+                # Dark night clouds
+                arcade.draw_ellipse_filled(icon_x, icon_y, (icon_size+10) * pulse, (icon_size-8) * pulse, cloud_color)
+                arcade.draw_ellipse_filled(icon_x-12, icon_y-6, (icon_size-6) * pulse, (icon_size-14) * pulse, cloud_color)
+                arcade.draw_ellipse_filled(icon_x+12, icon_y-6, (icon_size-8) * pulse, (icon_size-16) * pulse, cloud_color)
+                
+            elif "clear" in weather_condition:
+                # Draw animated moon for night clear conditions
+                moon_pulse = 1 + 0.15 * np.sin(current_time * 1.5)  # Gentle moon glow
+                moon_radius = (icon_size // 2) * moon_pulse
+                
+                # Moon glow layers
+                for glow_layer in range(3):
+                    glow_alpha = 80 - (glow_layer * 20)
+                    glow_size = moon_radius + (glow_layer * 4)
+                    arcade.draw_circle_filled(icon_x, icon_y, glow_size, (200, 220, 255, glow_alpha))
+                
+                # Main moon body
+                arcade.draw_circle_filled(icon_x, icon_y, moon_radius, (220, 230, 255))
+                
+                # Moon craters (static)
+                arcade.draw_circle_filled(icon_x - 4, icon_y + 2, 2, (180, 190, 220))
+                arcade.draw_circle_filled(icon_x + 2, icon_y - 3, 1.5, (190, 200, 230))
+                
+                # Twinkling stars around moon
+                for angle in range(0, 360, 60):
+                    star_angle = angle + (current_time * 10)  # Slow rotation
+                    rad = np.deg2rad(star_angle)
+                    star_distance = moon_radius + 15 + 5 * np.sin(current_time * 3 + angle / 60)
+                    
+                    star_x = icon_x + np.cos(rad) * star_distance
+                    star_y = icon_y + np.sin(rad) * star_distance
+                    star_alpha = int(150 + 100 * np.sin(current_time * 4 + angle / 30))
+                    
+                    arcade.draw_circle_filled(star_x, star_y, 1.5, (255, 255, 255, star_alpha))
+                
+        # Daytime weather conditions
+        elif "rain" in weather_condition:
+            # Daytime rain with lighter colors
+            cloud_color = (180, 180, 190)
+            rain_color = (80, 180, 255)
+            
+            # Draw light day clouds
+            arcade.draw_ellipse_filled(icon_x, icon_y, icon_size+10, icon_size-8, cloud_color)
+            arcade.draw_ellipse_filled(icon_x-12, icon_y-6, icon_size-6, icon_size-14, cloud_color)
+            arcade.draw_ellipse_filled(icon_x+12, icon_y-6, icon_size-8, icon_size-16, cloud_color)
             
             # Animated falling rain drops
             for i, dx in enumerate([-10, 0, 10]):
-                # Create different falling speeds and phases for each drop
-                fall_speed = 30 + (i * 10)  # Different speeds for variety
-                phase_offset = i * 0.5  # Stagger the drops
-                
-                # Calculate animated Y position (falling effect)
+                fall_speed = 30 + (i * 10)
+                phase_offset = i * 0.5
                 drop_cycle = (current_time * fall_speed + phase_offset * 100) % 40
                 drop_start_y = icon_y - 12 - (drop_cycle * 0.3)
                 drop_end_y = drop_start_y - 8
                 
-                # Draw multiple drops for continuous effect
                 for j in range(3):
                     offset = j * 15
                     arcade.draw_line(
                         icon_x + dx, drop_start_y - offset, 
                         icon_x + dx, drop_end_y - offset, 
-                        (80, 180, 255, max(0, 255 - offset * 8)), 3
+                        (*rain_color[:3], max(0, 255 - offset * 8)), 3
                     )
                     
         elif "cloud" in weather_condition or "overcast" in weather_condition:
-            # Draw gently pulsing cloud
-            pulse = 1 + 0.1 * np.sin(current_time * 2)  # Gentle breathing effect
-            cloud_color = (int(180 * pulse), int(180 * pulse), 190)
+            # Daytime clouds with lighter colors
+            base_color = 180
+            pulse = 1 + 0.1 * np.sin(current_time * 2)
+            cloud_color = (int(base_color * pulse), int(base_color * pulse), base_color + 10)
             
             arcade.draw_ellipse_filled(icon_x, icon_y, (icon_size+10) * pulse, (icon_size-8) * pulse, cloud_color)
             arcade.draw_ellipse_filled(icon_x-12, icon_y-6, (icon_size-6) * pulse, (icon_size-14) * pulse, cloud_color)
             arcade.draw_ellipse_filled(icon_x+12, icon_y-6, (icon_size-8) * pulse, (icon_size-16) * pulse, cloud_color)
             
-        elif "sun" in weather_condition or "clear" in weather_condition:
-            # Draw rotating sun with glowing effect
+        elif "fog" in weather_condition or "mist" in weather_condition:
+            # Draw fog/mist effect
+            fog_intensity = 0.8 if "fog" in weather_condition else 0.5
+            fog_color = (200, 200, 210, int(180 * fog_intensity))
+            
+            # Multiple overlapping fog layers with drift animation
+            for layer in range(4):
+                drift_offset = np.sin(current_time * 0.8 + layer * 0.5) * 3
+                layer_y = icon_y + (layer - 2) * 4
+                
+                arcade.draw_ellipse_filled(
+                    icon_x + drift_offset, layer_y, 
+                    icon_size + 5 - layer * 2, icon_size // 3, 
+                    fog_color
+                )
+                
+        elif "sun" in weather_condition or ("clear" in weather_condition and "night" not in weather_condition):
+            # Draw rotating sun with glowing effect (enhanced)
             rotation_angle = current_time * 45  # Rotate 45 degrees per second
             
+            # Determine sun intensity
+            is_sunny = "sunny" in weather_condition
+            base_intensity = 1.3 if is_sunny else 1.0
+            
             # Glowing sun core with pulsing effect
-            glow_pulse = 1 + 0.2 * np.sin(current_time * 3)
+            glow_pulse = base_intensity + 0.2 * np.sin(current_time * 3)
             sun_radius = (icon_size // 2) * glow_pulse
             
-            # Draw glow layers for depth
-            for glow_layer in range(3):
-                glow_alpha = 100 - (glow_layer * 30)
-                glow_size = sun_radius + (glow_layer * 3)
-                arcade.draw_circle_filled(icon_x, icon_y, glow_size, (255, 220, 40, glow_alpha))
+            # Enhanced glow layers for sunny conditions
+            glow_layers = 4 if is_sunny else 3
+            for glow_layer in range(glow_layers):
+                glow_alpha = (120 if is_sunny else 100) - (glow_layer * 25)
+                glow_size = sun_radius + (glow_layer * 4)
+                sun_color = (255, 200 if is_sunny else 220, 40 if is_sunny else 40)
+                arcade.draw_circle_filled(icon_x, icon_y, glow_size, (*sun_color, glow_alpha))
             
             # Main sun body
-            arcade.draw_circle_filled(icon_x, icon_y, sun_radius, (255, 220, 40))
+            sun_color = (255, 200, 0) if is_sunny else (255, 220, 40)
+            arcade.draw_circle_filled(icon_x, icon_y, sun_radius, sun_color)
             
-            # Rotating sun rays
-            for angle in range(0, 360, 45):
+            # Enhanced rotating sun rays
+            ray_count = 12 if is_sunny else 8
+            for angle in range(0, 360, 360 // ray_count):
                 animated_angle = angle + rotation_angle
                 rad = np.deg2rad(animated_angle)
                 
                 # Main rays
+                ray_length = 12 if is_sunny else 10
                 x1 = icon_x + np.cos(rad) * sun_radius
                 y1 = icon_y + np.sin(rad) * sun_radius
-                x2 = icon_x + np.cos(rad) * (sun_radius + 12)
-                y2 = icon_y + np.sin(rad) * (sun_radius + 12)
-                arcade.draw_line(x1, y1, x2, y2, (255, 220, 40), 3)
+                x2 = icon_x + np.cos(rad) * (sun_radius + ray_length)
+                y2 = icon_y + np.sin(rad) * (sun_radius + ray_length)
+                arcade.draw_line(x1, y1, x2, y2, sun_color, 3)
                 
-                # Smaller secondary rays (offset by 22.5 degrees)
-                secondary_angle = animated_angle + 22.5
-                rad2 = np.deg2rad(secondary_angle)
-                x3 = icon_x + np.cos(rad2) * (sun_radius + 2)
-                y3 = icon_y + np.sin(rad2) * (sun_radius + 2)
-                x4 = icon_x + np.cos(rad2) * (sun_radius + 8)
-                y4 = icon_y + np.sin(rad2) * (sun_radius + 8)
-                arcade.draw_line(x3, y3, x4, y4, (255, 240, 80), 2)
+                # Smaller secondary rays (offset by half angle)
+                if is_sunny:
+                    secondary_angle = animated_angle + (360 // ray_count) / 2
+                    rad2 = np.deg2rad(secondary_angle)
+                    x3 = icon_x + np.cos(rad2) * (sun_radius + 2)
+                    y3 = icon_y + np.sin(rad2) * (sun_radius + 2)
+                    x4 = icon_x + np.cos(rad2) * (sun_radius + 8)
+                    y4 = icon_y + np.sin(rad2) * (sun_radius + 8)
+                    arcade.draw_line(x3, y3, x4, y4, (255, 240, 80), 2)
+        
+        else:
+            # Default fallback - simple weather icon
+            arcade.draw_circle_filled(icon_x, icon_y, icon_size // 2, (200, 200, 200))
 
         y -= 25
 
