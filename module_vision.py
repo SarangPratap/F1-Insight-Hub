@@ -223,6 +223,8 @@ class WeatherComponent(BaseComponent):
     def set_weather(self, weather_data: Optional[Dict[str, float]]):
         """Update weather data"""
         self.weather_data = weather_data
+        #if weather_data:
+            #print(f"Weather: {weather_data.get('weather', 'Unknown')} (rainfall: {weather_data.get('rainfall', 0)}, humidity: {weather_data.get('humidity', 0)})")
 
     def draw(self, window):
         """Draw weather panel"""
@@ -239,6 +241,90 @@ class WeatherComponent(BaseComponent):
         arcade.draw_text(
             "WEATHER", self.left + 10, y, arcade.color.WHITE, 12, bold=True
         )
+
+        # Draw weather icon (sun, cloud, rain) based on weather condition with animations
+        icon_x = self.left + 150
+        icon_y = y - 10
+        icon_size = 28
+        weather_condition = self.weather_data.get("weather", "").lower()
+        
+        # Get current time for animations
+        import time
+        current_time = time.time()
+
+        if "rain" in weather_condition:
+            # Draw cloud with animated rain drops
+            arcade.draw_ellipse_filled(icon_x, icon_y, icon_size+10, icon_size-8, (180, 180, 190))
+            arcade.draw_ellipse_filled(icon_x-12, icon_y-6, icon_size-6, icon_size-14, (180, 180, 190))
+            arcade.draw_ellipse_filled(icon_x+12, icon_y-6, icon_size-8, icon_size-16, (180, 180, 190))
+            
+            # Animated falling rain drops
+            for i, dx in enumerate([-10, 0, 10]):
+                # Create different falling speeds and phases for each drop
+                fall_speed = 30 + (i * 10)  # Different speeds for variety
+                phase_offset = i * 0.5  # Stagger the drops
+                
+                # Calculate animated Y position (falling effect)
+                drop_cycle = (current_time * fall_speed + phase_offset * 100) % 40
+                drop_start_y = icon_y - 12 - (drop_cycle * 0.3)
+                drop_end_y = drop_start_y - 8
+                
+                # Draw multiple drops for continuous effect
+                for j in range(3):
+                    offset = j * 15
+                    arcade.draw_line(
+                        icon_x + dx, drop_start_y - offset, 
+                        icon_x + dx, drop_end_y - offset, 
+                        (80, 180, 255, max(0, 255 - offset * 8)), 3
+                    )
+                    
+        elif "cloud" in weather_condition or "overcast" in weather_condition:
+            # Draw gently pulsing cloud
+            pulse = 1 + 0.1 * np.sin(current_time * 2)  # Gentle breathing effect
+            cloud_color = (int(180 * pulse), int(180 * pulse), 190)
+            
+            arcade.draw_ellipse_filled(icon_x, icon_y, (icon_size+10) * pulse, (icon_size-8) * pulse, cloud_color)
+            arcade.draw_ellipse_filled(icon_x-12, icon_y-6, (icon_size-6) * pulse, (icon_size-14) * pulse, cloud_color)
+            arcade.draw_ellipse_filled(icon_x+12, icon_y-6, (icon_size-8) * pulse, (icon_size-16) * pulse, cloud_color)
+            
+        elif "sun" in weather_condition or "clear" in weather_condition:
+            # Draw rotating sun with glowing effect
+            rotation_angle = current_time * 45  # Rotate 45 degrees per second
+            
+            # Glowing sun core with pulsing effect
+            glow_pulse = 1 + 0.2 * np.sin(current_time * 3)
+            sun_radius = (icon_size // 2) * glow_pulse
+            
+            # Draw glow layers for depth
+            for glow_layer in range(3):
+                glow_alpha = 100 - (glow_layer * 30)
+                glow_size = sun_radius + (glow_layer * 3)
+                arcade.draw_circle_filled(icon_x, icon_y, glow_size, (255, 220, 40, glow_alpha))
+            
+            # Main sun body
+            arcade.draw_circle_filled(icon_x, icon_y, sun_radius, (255, 220, 40))
+            
+            # Rotating sun rays
+            for angle in range(0, 360, 45):
+                animated_angle = angle + rotation_angle
+                rad = np.deg2rad(animated_angle)
+                
+                # Main rays
+                x1 = icon_x + np.cos(rad) * sun_radius
+                y1 = icon_y + np.sin(rad) * sun_radius
+                x2 = icon_x + np.cos(rad) * (sun_radius + 12)
+                y2 = icon_y + np.sin(rad) * (sun_radius + 12)
+                arcade.draw_line(x1, y1, x2, y2, (255, 220, 40), 3)
+                
+                # Smaller secondary rays (offset by 22.5 degrees)
+                secondary_angle = animated_angle + 22.5
+                rad2 = np.deg2rad(secondary_angle)
+                x3 = icon_x + np.cos(rad2) * (sun_radius + 2)
+                y3 = icon_y + np.sin(rad2) * (sun_radius + 2)
+                x4 = icon_x + np.cos(rad2) * (sun_radius + 8)
+                y4 = icon_y + np.sin(rad2) * (sun_radius + 8)
+                arcade.draw_line(x3, y3, x4, y4, (255, 240, 80), 2)
+
         y -= 25
 
         # Draw weather info
@@ -937,6 +1023,9 @@ class F1RaceReplayWindow(arcade.Window):
         self.toggle_drs_zones = False
         self.show_driver_labels = False
 
+        # Background effects
+        self.background_time = 0.0
+
         # UI components
         self.leaderboard_comp = LeaderboardComponent(visible=visible_hud)
         self.weather_comp = WeatherComponent(left=70,visible=visible_hud)
@@ -971,6 +1060,75 @@ class F1RaceReplayWindow(arcade.Window):
         self.track_center_y = (self.y_min + self.y_max) / 2
 
         self._calculate_scale_and_offsets()
+
+    def _draw_dynamic_background(self):
+        """Draw clean HUD-style background"""
+        # Get current weather for color scheme
+        weather_condition = "clear"
+        if self.n_frames > 0:
+            frame_idx = int(self.frame_index) % self.n_frames
+            frame = self.frames[frame_idx]
+            weather_data = frame.get("weather", {})
+            if weather_data:
+                weather_condition = weather_data.get("weather", "clear").lower()
+        
+        # Clean HUD color scheme
+        if "rain" in weather_condition:
+            bg_color = (12, 18, 25)  # Dark blue-gray
+            accent_color = (30, 50, 70)
+        elif "cloud" in weather_condition:
+            bg_color = (18, 18, 22)  # Dark gray
+            accent_color = (40, 40, 50)
+        else:
+            bg_color = (15, 20, 28)  # Dark blue
+            accent_color = (35, 45, 60)
+        
+        # Solid background
+        arcade.draw_rect_filled(
+            arcade.rect.XYWH(self.width/2, self.height/2, self.width, self.height),
+            bg_color
+        )
+        
+        # Subtle grid overlay for HUD feel
+        self._draw_minimal_grid(accent_color)
+
+    def _draw_minimal_grid(self, accent_color):
+        """Draw minimal HUD-style grid"""
+        grid_size = 80
+        alpha = 15  # Very subtle
+        
+        # Only draw major grid lines
+        for x in range(0, self.width + grid_size, grid_size):
+            arcade.draw_line(
+                x, 0, x, self.height,
+                (*accent_color, alpha), 1
+            )
+        
+        for y in range(0, self.height + grid_size, grid_size):
+            arcade.draw_line(
+                0, y, self.width, y,
+                (*accent_color, alpha), 1
+            )
+        
+        # Add corner accents for modern HUD look
+        corner_size = 20
+        corner_color = (*accent_color, 80)
+        
+        # Top-left corner
+        arcade.draw_line(0, self.height, corner_size, self.height, corner_color, 2)
+        arcade.draw_line(0, self.height, 0, self.height - corner_size, corner_color, 2)
+        
+        # Top-right corner
+        arcade.draw_line(self.width - corner_size, self.height, self.width, self.height, corner_color, 2)
+        arcade.draw_line(self.width, self.height, self.width, self.height - corner_size, corner_color, 2)
+        
+        # Bottom-left corner
+        arcade.draw_line(0, 0, corner_size, 0, corner_color, 2)
+        arcade.draw_line(0, 0, 0, corner_size, corner_color, 2)
+        
+        # Bottom-right corner
+        arcade.draw_line(self.width - corner_size, 0, self.width, 0, corner_color, 2)
+        arcade.draw_line(self.width, 0, self.width, corner_size, corner_color, 2)
 
     def _calculate_scale_and_offsets(self):
         """Calculate scaling for track rendering"""
@@ -1017,7 +1175,9 @@ class F1RaceReplayWindow(arcade.Window):
     def on_draw(self):
         """Render the race replay"""
         self.clear()
-        arcade.set_background_color((20, 20, 25))
+        
+        # Draw modern animated background
+        self._draw_dynamic_background()
 
         if self.n_frames == 0:
             arcade.draw_text(
@@ -1223,6 +1383,10 @@ class F1RaceReplayWindow(arcade.Window):
 
     def on_update(self, delta_time: float):
         """Update animation"""
+        # Update background timer for minimal effects
+        self.background_time += delta_time
+        
+        # Update race playback
         if not self.paused and self.n_frames > 0:
             self.frame_index += delta_time * FPS * self.playback_speed
             if self.frame_index >= self.n_frames:
