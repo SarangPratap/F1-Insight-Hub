@@ -21,12 +21,12 @@ from PySide6.QtWidgets import (
     QRadioButton,
 )
 from PySide6.QtCore import QThread, Signal, Qt
-from PySide6.QtGui import QFont, QPixmap
+from PySide6.QtGui import QPixmap
 import subprocess
 import tempfile
 import uuid
 
-from data_engine import get_race_weekends_by_year, enable_cache, load_session
+from data_engine import get_race_weekends_by_year, enable_cache
 
 
 class FetchScheduleWorker(QThread):
@@ -227,21 +227,15 @@ class F1InsightHubLauncher(QMainWindow):
 
         self.session_race = QRadioButton("Race")
         self.session_race.setChecked(True)
-        self.session_qualifying = QRadioButton("Qualifying")
         self.session_sprint = QRadioButton("Sprint")
-        self.session_sprint_qual = QRadioButton("Sprint Qualifying")
         
         # Increase font size for options
         opt_style = "font-size: 14px;"
         self.session_race.setStyleSheet(opt_style)
-        self.session_qualifying.setStyleSheet(opt_style)
         self.session_sprint.setStyleSheet(opt_style)
-        self.session_sprint_qual.setStyleSheet(opt_style)
 
         session_layout.addWidget(self.session_race)
-        session_layout.addWidget(self.session_qualifying)
         session_layout.addWidget(self.session_sprint)
-        session_layout.addWidget(self.session_sprint_qual)
         session_layout.addStretch()
         session_group.setLayout(session_layout)
         
@@ -370,19 +364,10 @@ class F1InsightHubLauncher(QMainWindow):
             f"Selected: {event_name}. Choose a session and launch a module."
         )
 
-        # Enable/disable sprint options based on event type
-        has_sprint = "sprint" in self.selected_event["type"].lower()
-        self.session_sprint.setEnabled(has_sprint)
-        self.session_sprint_qual.setEnabled(has_sprint)
-
     def get_selected_session_type(self):
         """Get the selected session type code"""
-        if self.session_qualifying.isChecked():
-            return "Q"
-        elif self.session_sprint.isChecked():
+        if self.session_sprint.isChecked():
             return "S"
-        elif self.session_sprint_qual.isChecked():
-            return "SQ"
         else:
             return "R"
 
@@ -402,11 +387,22 @@ class F1InsightHubLauncher(QMainWindow):
 
         session_names = {
             "R": "Race",
-            "Q": "Qualifying",
             "S": "Sprint",
-            "SQ": "Sprint Qualifying",
         }
         session_name = session_names.get(session_type, "Session")
+
+        # Validate session type exists for this event
+        event_type = self.selected_event.get("type", "").lower()
+        
+        if session_type == "S" and "sprint" not in event_type:
+            error_msg = f"❌ Error: Session type '{session_name}' does not exist for {self.selected_event['event_name']}"
+            self.status_label.setText(error_msg)
+            # QMessageBox.warning(
+            #     self,
+            #     "Session Not Available",
+            #     f"Sprint session is not available for this event.\nPlease select a different session.",
+            # )
+            return
 
         self.status_label.setText(
             f"Loading {session_name} data for {self.selected_event['event_name']}..."
