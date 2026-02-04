@@ -173,6 +173,123 @@ def get_circuit_rotation(session):
 
 
 # ============================================================================
+# WEATHER & NIGHT RACE DETECTION
+# ============================================================================
+
+def calculate_night_race(session, session_time_seconds):
+    """
+    Calculate if a race is happening during night time based on actual session data from FastF1 API
+    
+    Args:
+        session: FastF1 Session object
+        session_time_seconds: Time offset in seconds from race start
+        
+    Returns:
+        Boolean indicating if it's a night race
+    """
+    try:
+        # Primary: Use session_info with StartDate and timezone offset (most accurate)
+        if hasattr(session, 'session_info') and session.session_info:
+            start_date = session.session_info.get('StartDate')
+            gmt_offset = session.session_info.get('GmtOffset')
+            
+            if start_date and gmt_offset:
+                # Convert to local time using GMT offset from FastF1
+                local_start_time = start_date + gmt_offset
+                current_race_time = local_start_time + pd.Timedelta(seconds=session_time_seconds)
+                race_hour = current_race_time.hour
+                
+                # Night is 18:00 (6 PM) to 06:00 (6 AM) local time - Dynamic transition!
+                is_night = race_hour >= 18 or race_hour <= 6
+                print(f"🌙 API-based detection: {race_hour}:00 local (race time) -> {'Night' if is_night else 'Day'}")
+                return is_night
+        
+        # Secondary: Use event Session5Date (Race) if available with timezone
+        if hasattr(session, 'event') and hasattr(session.event, 'Session5Date'):
+            race_start = session.event.Session5Date
+            if hasattr(race_start, 'hour'):
+                current_race_time = race_start + pd.Timedelta(seconds=session_time_seconds)
+                race_hour = current_race_time.hour
+                is_night = race_hour >= 18 or race_hour <= 6
+                print(f"🌙 Event-based detection: {race_hour}:00 (race time) -> {'Night' if is_night else 'Day'}")
+                return is_night
+        
+        # Fallback: Try other session timing data
+        session_start_time = None
+        if hasattr(session, 'session_start_time') and session.session_start_time:
+            session_start_time = session.session_start_time
+        elif hasattr(session, 'date') and session.date:
+            session_start_time = session.date
+        
+        if session_start_time:
+            if not isinstance(session_start_time, pd.Timestamp):
+                session_start_time = pd.to_datetime(session_start_time)
+            
+            race_time = session_start_time + pd.Timedelta(seconds=session_time_seconds)
+            race_hour = race_time.hour
+            is_night = race_hour >= 18 or race_hour <= 6
+            print(f"🌙 Fallback detection: {race_hour}:00 (race time) -> {'Night' if is_night else 'Day'}")
+            return is_night
+            
+    except Exception as e:
+        print(f"⚠️ API timing detection failed: {e}")
+    
+    # Last resort: Check only truly night-only circuits (minimal hardcoding)
+    circuit_name = session.event.get("Location", "").lower()
+    critical_night_circuits = ["marina bay", "singapore"]  # Only circuits that are ALWAYS night
+    is_night_circuit = any(night_circuit in circuit_name for night_circuit in critical_night_circuits)
+    
+    if is_night_circuit:
+        print(f"🌙 Circuit-based fallback: {circuit_name} is night-only")
+    
+    return is_night_circuit
+
+
+def determine_weather_condition(rainfall=0.0, humidity=50.0, air_temp=25.0, track_temp=35.0, is_night=False):
+    """
+    Determine weather condition based on meteorological data and time of day
+    
+    Args:
+        rainfall: Rainfall amount (mm)
+        humidity: Humidity percentage (0-100)
+        air_temp: Air temperature (Celsius)
+        track_temp: Track temperature (Celsius)
+        is_night: Whether it's a night race
+        
+    Returns:
+        String describing weather condition
+    """
+    # Rain conditions (highest priority)
+    if rainfall > 5.0:
+        return "night_rain" if is_night else "rain"
+    elif rainfall > 0.5:
+        return "night_drizzle" if is_night else "drizzle"
+    
+    # Fog/mist conditions (high humidity + temperature differential)
+    if humidity > 85 and abs(air_temp - track_temp) > 15:
+        return "fog"
+    elif humidity > 80 and abs(air_temp - track_temp) > 10:
+        return "mist"
+    
+    # Night conditions (no rain)
+    if is_night:
+        if humidity > 70:
+            return "night_cloudy"
+        else:
+            return "night_clear"
+    
+    # Daytime conditions
+    if humidity > 80:
+        return "overcast"
+    elif humidity > 60:
+        return "cloudy"
+    elif air_temp > 25 and humidity < 50:
+        return "sunny"
+    else:
+        return "clear"
+
+
+# ============================================================================
 # TELEMETRY PROCESSING (Multi-threaded)
 # ============================================================================
 
@@ -592,18 +709,22 @@ def get_race_telemetry(session, session_type="R", force_refresh=False):
             except:
                 pass
 
-        # Ensure weather data always has the 'weather' key for GUI icons
+        # Enhanced weather condition determination with night race detection
         if weather_snapshot is not None:
-            # Make sure 'weather' key is present
-            if "weather" not in weather_snapshot:
-                rainfall_val = weather_snapshot.get("rainfall", 0.0)
-                humidity_val = weather_snapshot.get("humidity", 0.0)
-                if rainfall_val > 0.01:
-                    weather_snapshot["weather"] = "Rain"
-                elif humidity_val > 70:
-                    weather_snapshot["weather"] = "Cloudy"
-                else:
-                    weather_snapshot["weather"] = "Clear"
+            # Calculate if it's a night race based on actual session timing data
+            is_night_race = calculate_night_race(session, t)
+            
+            # Determine weather condition based on data and night status
+            weather_condition = determine_weather_condition(
+                rainfall=weather_snapshot.get("rainfall", 0.0),
+                humidity=weather_snapshot.get("humidity", 50.0),
+                air_temp=weather_snapshot.get("air_temp", 25.0),
+                track_temp=weather_snapshot.get("track_temp", 35.0),
+                is_night=is_night_race
+            )
+            
+            weather_snapshot["weather"] = weather_condition
+            weather_snapshot["is_night"] = is_night_race
 
         frames.append(
             {
