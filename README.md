@@ -1,10 +1,10 @@
 # F1 Insight Hub
 
-> **Lightning-fast Formula 1 telemetry analysis and race visualization**
-
 <div align="center">
-  <img src="./Banner.png" alt="F1 Racing" width="100%" style="border-radius: 8px;">
+  <img src="./assets/banner.png" alt="F1 Insight Hub" width="100%" style="border-radius: 10px;">
 </div>
+
+> **Lightning-fast Formula 1 telemetry analysis and race visualization**
 
 A Python-based Formula 1 data visualization and analytics platform that brings real-time telemetry, race replays, and predictive insights to life.
 
