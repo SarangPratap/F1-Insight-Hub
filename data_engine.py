@@ -65,7 +65,7 @@ def load_session(year, round_number, session_type="R"):
         "SQ": "Sprint Qualifying",
     }
 
-    session_name = session_map.get(session_type, "Race")
+    session_name = session_map.get(session_type, "Race")  # Default Race
 
     try:
         session = fastf1.get_session(year, round_number, session_name)
@@ -92,9 +92,11 @@ def get_race_weekends_by_year(year):
 
         for idx, event in schedule.iterrows():
             event_type = "conventional"
+            # Check for sprint events (handles 'sprint', 'sprint_shootout', and 'sprint_qualifying' formats)
             if (
                 event.get("EventFormat") == "sprint"
                 or event.get("EventFormat") == "sprint_shootout"
+                or event.get("EventFormat") == "sprint_qualifying"
             ):
                 event_type = "sprint"
 
