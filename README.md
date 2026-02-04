@@ -1,7 +1,7 @@
 # F1 Insight Hub
 
 <div align="center">
-  <img src="./assets/Banner.png" alt="F1 Insight Hub" width="100%" style="border-radius: 10px;">
+  <img src="./assets/banner.png" alt="F1 Insight Hub" width="100%" style="border-radius: 10px;">
 </div>
 
 > **Lightning-fast Formula 1 telemetry analysis and race visualization**
