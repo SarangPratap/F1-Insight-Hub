@@ -277,16 +277,19 @@ class F1InsightHubLauncher(QMainWindow):
         # 2. Analytics Module Button
         self.btn_analytics = QPushButton("RaceAnalytics")
         self.btn_analytics.setFixedSize(370, 220)
-        self.btn_analytics.setEnabled(False)
+        self.btn_analytics.setEnabled(True)
+        self.btn_analytics.clicked.connect(self.launch_analytics_module)
         self.btn_analytics.setStyleSheet("""
             QPushButton {
-                background-color: #333333;
+                background-color: #e10600;
                 color: white;
                 font-size: 46px;
                 border-radius: 15px;
-                border: 1px solid #444;
             }
-        """)
+            QPushButton:hover {
+                background-color: #ff1e00;
+                border: 2px solid white;
+            }""")
 
         # 3. Intelligence Module Button
         self.btn_intelligence = QPushButton("RaceIntelligence")
@@ -437,6 +440,31 @@ class F1InsightHubLauncher(QMainWindow):
                 self, "Launch Error", f"Failed to launch Vision Module: {str(e)}"
             )
             self.status_label.setText("Error launching module.")
+
+    def launch_analytics_module(self):
+        """Launch the Analytics Module"""
+        if not self.selected_event:
+            QMessageBox.warning(self, "No Event Selected", "Please select a race event first.")
+            return
+
+        year = int(self.year_combo.currentText())
+        round_number = self.selected_event["round_number"]
+        session_type = self.get_selected_session_type()
+
+        self.status_label.setText(f"Launching Analytics for {self.selected_event['event_name']}...")
+
+        cmd = [
+            sys.executable,
+            "module_analytics.py",
+            "--year", str(year),
+            "--round", str(round_number),
+            "--session", session_type,
+        ]
+
+        try:
+            subprocess.Popen(cmd)
+        except Exception as e:
+            QMessageBox.critical(self, "Launch Error", f"Failed to launch Analytics: {str(e)}")
 
 
 def main():
