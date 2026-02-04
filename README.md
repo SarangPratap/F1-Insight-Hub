@@ -165,12 +165,7 @@ User Selection → Validation → Data Fetch → Processing → Visualization/An
 
 ---
 
-## 📝 Supported Seasons
 
-F1 2024-2025 with full support for:
-- ✅ Standard races
-- ✅ Sprint weekends
-- ✅ Special event formats
 
 ---
 
