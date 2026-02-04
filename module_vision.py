@@ -445,7 +445,6 @@ class DriverInfoComponent(BaseComponent):
         self.width = width
         self.driver_data = None
         self.visible = False
-        # Store the name mapping (Abbreviation -> Full Name)
         self.driver_names = driver_names or {}
 
     def set_driver_data(self, driver_data: Optional[Dict[str, Any]]):
@@ -570,60 +569,38 @@ class LegendComponent(BaseComponent):
         self.y = padding  # Start 20 pixels up from the bottom edge (y=0 in Arcade)
 
     def draw(self, window):
-        """Draw legend"""
+        """Draw legend with transparent background"""
         if not self.visible:
             return
 
         # Use the calculated self.x and self.y
         bottom_left_x = self.x
-        # The starting Y coordinate for the text block (top of the panel area)
         current_y = self.y + self.height - 30
-
-        # Draw Background Panel
-        arcade.draw_rect_filled(
-            arcade.rect.XYWH(
-                bottom_left_x + self.width / 2,  # Center X
-                self.y + self.height / 2,  # Center Y
-                self.width,
-                self.height,
-            ),
-            (20, 20, 25, 220),  # Semi-transparent dark background
-        )
 
         # Draw Header
         arcade.draw_text(
             "CONTROLS", bottom_left_x + 10, current_y, arcade.color.CYAN, 12, bold=True
         )
-        current_y -= 25  # Move down for the first list item
+        current_y -= 25
 
         # Draw list items
-        arcade.draw_text(
-            "SPACE: Pause/Resume", bottom_left_x + 10, current_y, arcade.color.WHITE, 10
-        )
-        current_y -= 16
-        arcade.draw_text(
-            "←/→: Rewind/Forward", bottom_left_x + 10, current_y, arcade.color.WHITE, 10
-        )
-        current_y -= 16
-        arcade.draw_text(
-            "↑/↓: Speed Up/Down", bottom_left_x + 10, current_y, arcade.color.WHITE, 10
-        )
-        current_y -= 16
-        arcade.draw_text(
-            "R: Restart", bottom_left_x + 10, current_y, arcade.color.WHITE, 10
-        )
-        current_y -= 16
-        arcade.draw_text(
-            "D: Toggle DRS Zones", bottom_left_x + 10, current_y, arcade.color.WHITE, 10
-        )
-        current_y -= 16
-        arcade.draw_text(
-            "L: Toggle Labels", bottom_left_x + 10, current_y, arcade.color.WHITE, 10
-        )
-        current_y -= 16
-        arcade.draw_text(
-            "H: Toggle Help", bottom_left_x + 10, current_y, arcade.color.WHITE, 10
-        )
+        # Added a slight shadow effect (black text behind white) to make it readable on any background
+        labels = [
+            "SPACE: Pause/Resume",
+            "←/→: Rewind/Forward",
+            "↑/↓: Speed Up/Down",
+            "R: Restart",
+            "D: Toggle DRS Zones",
+            "L: Toggle Labels",
+            "H: Toggle Help"
+        ]
+
+        for label in labels:
+            # Draw shadow for readability
+            arcade.draw_text(label, bottom_left_x + 11, current_y - 1, (0, 0, 0, 200), 10)
+            # Draw actual text
+            arcade.draw_text(label, bottom_left_x + 10, current_y, arcade.color.WHITE, 10)
+            current_y -= 16
 
 
 class SessionInfoComponent(BaseComponent):

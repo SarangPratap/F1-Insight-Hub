@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
     QRadioButton,
 )
 from PySide6.QtCore import QThread, Signal, Qt
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QPixmap
 import subprocess
 import tempfile
 import uuid
@@ -67,39 +67,121 @@ class F1InsightHubLauncher(QMainWindow):
 
     def _setup_ui(self):
         """Setup the main UI layout"""
+        
+        # --- GLOBAL STYLESHEET ---
+        # Sets White Background, Jura Font, Black Text, and Red Radio Buttons globally
+        self.setStyleSheet("""
+            QMainWindow, QWidget {
+                background-color: #FFFFFF;
+                color: #000000;
+                font-family: 'Jura', sans-serif;
+            }
+            QLabel {
+                color: #000000;
+            }
+            QGroupBox {
+                border: 1px solid #CCCCCC;
+                border-radius: 5px;
+                margin-top: 10px;
+                font-weight: bold;
+                color: #000000;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }
+            /* --- RED RADIO BUTTONS --- */
+            QRadioButton {
+                spacing: 8px;
+                color: #000000;
+            }
+            QRadioButton::indicator {
+                width: 16px;
+                height: 16px;
+                border-radius: 9px;
+                border: 2px solid #555555;
+            }
+            QRadioButton::indicator:checked {
+                background-color: #e10600; /* F1 Red */
+                border: 2px solid #e10600;
+            }
+            QRadioButton::indicator:unchecked:hover {
+                border: 2px solid #e10600;
+            }
+            /* --- TREE WIDGET STYLING --- */
+            QTreeWidget {
+                border: 1px solid #ccc;
+                font-size: 13px;
+                background-color: white;
+                alternate-background-color: #f9f9f9;
+            }
+            QHeaderView::section {
+                background-color: #f0f0f0;
+                padding: 4px;
+                border: 1px solid #ddd;
+                font-weight: bold;
+            }
+        """)
+
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout()
         central_widget.setLayout(main_layout)
 
-        # 1. Header
-        header_label = QLabel("F1 Insight Hub")
-        header_font = QFont()
-        header_font.setPointSize(24)
-        header_font.setBold(True)
-        header_label.setFont(header_font)
-        header_label.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(header_label)
+        # ====================================================================
+        # 1. NEW HEADER WITH LOGO IMAGE
+        # ====================================================================
+        header_container = QWidget()
+        header_layout = QHBoxLayout()
+        header_layout.setAlignment(Qt.AlignCenter)
+        header_layout.setSpacing(10)
+        header_container.setLayout(header_layout)
 
-        subtitle = QLabel(
-            "Telemetry Visualization & Machine Learning Analytics"
-        )
+        # A. The Logo Image
+        logo_label = QLabel()
+        logo_pixmap = QPixmap("f1_logo.png") 
+        
+        if not logo_pixmap.isNull():
+            scaled_logo = logo_pixmap.scaledToHeight(85, Qt.SmoothTransformation)
+            logo_label.setPixmap(scaled_logo)
+        else:
+            # Fallback if image missing
+            logo_label.setText("F1") 
+            logo_label.setStyleSheet("font-size: 30px; font-weight: bold; color: #e10600;")
+        
+        # B. The Text
+        title_text = QLabel("Insight Hub")
+        title_text.setStyleSheet("font-size: 53px; margin-left: 0px;")
+        
+        header_layout.addWidget(logo_label)
+        header_layout.addWidget(title_text)
+        main_layout.addWidget(header_container)
+
+        subtitle = QLabel("Telemetry Visualization & Machine Learning Analytics")
         subtitle.setAlignment(Qt.AlignCenter)
-        subtitle_font = QFont()
-        subtitle_font.setPointSize(11)
-        subtitle.setFont(subtitle_font)
+        subtitle.setStyleSheet("font-size: 20px; margin-bottom: 20px;")
         main_layout.addWidget(subtitle)
         
-        main_layout.addSpacing(20) # Add some breathing room
+        main_layout.addSpacing(10)
 
-        # 2. Year Selection (Remains at top)
+        # ====================================================================
+        # 2. Year Selection
+        # ====================================================================
         year_layout = QHBoxLayout()
         year_label = QLabel("Select Year:")
-        year_label_font = QFont()
-        year_label_font.setPointSize(16)
-        year_label.setFont(year_label_font)
+        year_label.setStyleSheet("font-size: 16px; font-weight: bold;")
 
         self.year_combo = QComboBox()
+        self.year_combo.setStyleSheet("""
+            QComboBox {
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                padding: 5px;
+                min-width: 100px;
+                font-size: 14px;
+            }
+        """)
         current_year = 2025
         for year in range(current_year, 2009, -1):
             self.year_combo.addItem(str(year))
@@ -112,7 +194,7 @@ class F1InsightHubLauncher(QMainWindow):
         main_layout.addLayout(year_layout)
 
         # ====================================================================
-        # NEW: Horizontal Layout for Calendar (Left) and Sessions (Right)
+        # 3. Calendar (Left) and Sessions (Right)
         # ====================================================================
         content_layout = QHBoxLayout()
         
@@ -121,31 +203,27 @@ class F1InsightHubLauncher(QMainWindow):
         calendar_layout = QVBoxLayout()
         
         self.schedule_tree = QTreeWidget()
-        self.schedule_tree.setHeaderLabels(
-            ["Round", "Event", "Country", "Date"]
-        )
+        self.schedule_tree.setHeaderLabels(["Round", "Event", "Country", "Date"])
         self.schedule_tree.setColumnWidth(0, 90)
         self.schedule_tree.setColumnWidth(1, 330)
         self.schedule_tree.setColumnWidth(2, 240)
+        self.schedule_tree.setAlternatingRowColors(True)
         self.schedule_tree.itemClicked.connect(self.on_event_selected)
         
         calendar_layout.addWidget(self.schedule_tree)
         calendar_group.setLayout(calendar_layout)
         
-        # Add to content layout with Stretch=3 (takes up ~75% width)
         content_layout.addWidget(calendar_group, 3)
 
         # --- RIGHT SIDE: Session Selection ---
         right_panel_layout = QVBoxLayout()
         
-        # Session Type Box
         session_group = QGroupBox("Select Session Type")
-        session_font = QFont()
-        session_font.setBold(True)
-        session_group.setFont(session_font)
+        # Global stylesheet handles font-family, we just set bold here
+        session_group.setStyleSheet("font-weight: bold;")
         
         session_layout = QVBoxLayout()
-        session_layout.setSpacing(15) # Space out the radio buttons
+        session_layout.setSpacing(15) 
 
         self.session_race = QRadioButton("Race")
         self.session_race.setChecked(True)
@@ -154,47 +232,41 @@ class F1InsightHubLauncher(QMainWindow):
         self.session_sprint_qual = QRadioButton("Sprint Qualifying")
         
         # Increase font size for options
-        opt_font = QFont()
-        opt_font.setPointSize(11)
-        self.session_race.setFont(opt_font)
-        self.session_qualifying.setFont(opt_font)
-        self.session_sprint.setFont(opt_font)
-        self.session_sprint_qual.setFont(opt_font)
+        opt_style = "font-size: 14px;"
+        self.session_race.setStyleSheet(opt_style)
+        self.session_qualifying.setStyleSheet(opt_style)
+        self.session_sprint.setStyleSheet(opt_style)
+        self.session_sprint_qual.setStyleSheet(opt_style)
 
         session_layout.addWidget(self.session_race)
         session_layout.addWidget(self.session_qualifying)
         session_layout.addWidget(self.session_sprint)
         session_layout.addWidget(self.session_sprint_qual)
-        session_layout.addStretch() # Push radio buttons to top
+        session_layout.addStretch()
         session_group.setLayout(session_layout)
         
-        # Add to right panel
         right_panel_layout.addWidget(session_group)
-        right_panel_layout.addStretch() # Push everything up
+        right_panel_layout.addStretch()
         
-        # Add to content layout with Stretch=1 (takes up ~25% width)
         content_layout.addLayout(right_panel_layout, 1)
-
-        # Add the combined layout to main
         main_layout.addLayout(content_layout)
 
         # ====================================================================
-        # NEW: Big Square Module Buttons
+        # 4. Big Square Module Buttons
         # ====================================================================
         
         buttons_layout = QHBoxLayout()
-        buttons_layout.setSpacing(20) # Gap between squares
+        buttons_layout.setSpacing(20)
 
         # 1. Vision Module Button
         self.btn_vision = QPushButton("RaceVision")
-        self.btn_vision.setFixedSize(370, 220) # MAKE IT SQUARE
+        self.btn_vision.setFixedSize(370, 220)
         self.btn_vision.clicked.connect(self.launch_vision_module)
         self.btn_vision.setStyleSheet('''
             QPushButton {
                 background-color: #e10600;
                 color: white;
                 font-size: 46px;
-                font-weight: bold;
                 border-radius: 15px;
             }
             QPushButton:hover {
@@ -204,14 +276,13 @@ class F1InsightHubLauncher(QMainWindow):
 
         # 2. Analytics Module Button
         self.btn_analytics = QPushButton("RaceAnalytics")
-        self.btn_analytics.setFixedSize(370, 220) # MAKE IT SQUARE
+        self.btn_analytics.setFixedSize(370, 220)
         self.btn_analytics.setEnabled(False)
         self.btn_analytics.setStyleSheet("""
             QPushButton {
                 background-color: #333333;
-                color: #888888;
+                color: white;
                 font-size: 46px;
-                font-weight: bold;
                 border-radius: 15px;
                 border: 1px solid #444;
             }
@@ -219,31 +290,36 @@ class F1InsightHubLauncher(QMainWindow):
 
         # 3. Intelligence Module Button
         self.btn_intelligence = QPushButton("RaceIntelligence")
-        self.btn_intelligence.setFixedSize(370, 220) # MAKE IT SQUARE
+        self.btn_intelligence.setFixedSize(370, 220)
         self.btn_intelligence.setEnabled(False)
         self.btn_intelligence.setStyleSheet("""
             QPushButton {
                 background-color: #333333;
-                color: #888888;
+                color: white;
                 font-size: 46px;
-                font-weight: bold;
                 border-radius: 15px;
                 border: 1px solid #444;
             }
         """)
 
-        buttons_layout.addStretch() # Center the buttons group
+        buttons_layout.addStretch()
         buttons_layout.addWidget(self.btn_vision)
         buttons_layout.addWidget(self.btn_analytics)
         buttons_layout.addWidget(self.btn_intelligence)
-        buttons_layout.addStretch() # Center the buttons group
+        buttons_layout.addStretch()
         
         main_layout.addLayout(buttons_layout)
         main_layout.addSpacing(10)
 
         # Status bar
         self.status_label = QLabel("Ready. Select a race to begin analysis.")
-        self.status_label.setStyleSheet("padding: 8px; background-color: #f0f0f0;font-size: 20px;color: #333333; border-radius: 4px;")
+        self.status_label.setStyleSheet("""
+            padding: 8px; 
+            background-color: #ff2800; 
+            font-size: 16px; 
+            color: white; 
+            border-radius: 4px;
+        """)
         main_layout.addWidget(self.status_label)
 
     def load_schedule(self):
