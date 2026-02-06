@@ -333,14 +333,26 @@ def _process_single_driver(args):
     total_dist_so_far = 0.0
 
     # Iterate through laps in order
+    # Iterate through laps in order
     for _, lap in laps_driver.iterlaps():
-        lap_tel = lap.get_telemetry()
+        try:
+            # FIX: catch FastF1 errors on specific laps (common in older seasons)
+            lap_tel = lap.get_telemetry()
+        except ValueError:
+            # If "add_driver_ahead" fails, try getting basic telemetry without it
+            # Note: This fallback depends on FastF1 version, but skipping is safer
+            print(f"  [Warning] Skipping corrupt lap {int(lap.LapNumber)} for {driver_code}")
+            continue
+        except Exception as e:
+            print(f"  [Error] Failed to process lap {int(lap.LapNumber)} for {driver_code}: {e}")
+            continue
+
         lap_number = lap.LapNumber
         tyre_compound_as_int = get_tyre_compound_int(lap.Compound)
 
         if lap_tel.empty:
             continue
-
+        
         # Extract telemetry arrays
         t_lap = lap_tel["SessionTime"].dt.total_seconds().to_numpy()
         x_lap = lap_tel["X"].to_numpy()

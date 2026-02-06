@@ -183,7 +183,7 @@ class F1InsightHubLauncher(QMainWindow):
             }
         """)
         current_year = 2025
-        for year in range(current_year, 2009, -1):
+        for year in range(current_year, 2017, -1):
             self.year_combo.addItem(str(year))
         self.year_combo.setCurrentText(str(current_year))
         self.year_combo.currentTextChanged.connect(self.load_schedule)
@@ -236,7 +236,6 @@ class F1InsightHubLauncher(QMainWindow):
 
         session_layout.addWidget(self.session_race)
         session_layout.addWidget(self.session_sprint)
-        session_layout.addStretch()
         session_group.setLayout(session_layout)
         
         right_panel_layout.addWidget(session_group)
@@ -312,7 +311,7 @@ class F1InsightHubLauncher(QMainWindow):
         self.status_label = QLabel("Ready. Select a race to begin analysis.")
         self.status_label.setStyleSheet("""
             padding: 8px; 
-            background-color: #ff2800; 
+            background-color: #e10600; 
             font-size: 16px; 
             color: white; 
             border-radius: 4px;

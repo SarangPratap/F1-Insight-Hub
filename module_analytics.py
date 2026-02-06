@@ -14,13 +14,14 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QFont, QColor, QIcon
-
-# Matplotlib integration
 import matplotlib
 matplotlib.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import seaborn as sns
+
+matplotlib.rcParams['font.family'] = 'sans-serif'
+matplotlib.rcParams['font.sans-serif'] = ['Jura', 'Arial', 'DejaVu Sans']
 
 # Project imports
 from data_engine import load_session, enable_cache
@@ -101,7 +102,7 @@ class AnalyticsWindow(QMainWindow):
         header = QLabel("ANALYTICS")
         header.setFixedHeight(60)
         header.setAlignment(Qt.AlignCenter)
-        header.setStyleSheet(f"background-color: {ACCENT_COLOR}; color: white; font-weight: bold; font-size: 18px;")
+        header.setStyleSheet(f"background-color: {ACCENT_COLOR}; color: white; font-size: 24px;")
         sidebar_layout.addWidget(header)
 
         # Menu List
@@ -129,13 +130,14 @@ class AnalyticsWindow(QMainWindow):
         
         # Add Menu Items
         items = [
-            ("📋 Race Summary", 0),
-            ("⏱️ Fastest Laps", 1),
-            ("📈 Lap Progression", 2)
+            ("Race Summary", 0),
+            ("Fastest Laps", 1),
+            ("Lap Progression", 2)
         ]
         for name, idx in items:
             item = QListWidgetItem(name)
             item.setData(Qt.UserRole, idx)
+            item.setTextAlignment(Qt.AlignCenter)
             self.menu_list.addItem(item)
 
         self.menu_list.currentRowChanged.connect(self.switch_page)
@@ -144,7 +146,7 @@ class AnalyticsWindow(QMainWindow):
         # Footer in Sidebar
         event_label = QLabel(f"{self.session.event['EventName']}\n{self.year}")
         event_label.setAlignment(Qt.AlignCenter)
-        event_label.setStyleSheet("color: #666; font-size: 11px; padding: 10px;")
+        event_label.setStyleSheet("color: #e10600; font-size: 18px; padding: 10px;")
         sidebar_layout.addWidget(event_label)
 
         main_layout.addWidget(sidebar)
@@ -459,8 +461,6 @@ class AnalyticsWindow(QMainWindow):
                     label=driver
                 )
                 
-                # Annotate Stints (Tyre Changes)
-                # We check where the compound changes compared to previous lap
                 stint_changes = clean_drv.loc[clean_drv['Compound'] != clean_drv['Compound'].shift(1)]
                 
                 for idx, row in stint_changes.iterrows():
@@ -484,7 +484,6 @@ class AnalyticsWindow(QMainWindow):
             self.pace_ax.text(0.5, 0.5, "No Data for Driver", ha='center')
 
         self.pace_canvas.draw()
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

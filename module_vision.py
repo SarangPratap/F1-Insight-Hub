@@ -58,16 +58,18 @@ class BaseComponent:
 
 
 class LeaderboardComponent(BaseComponent):
-    """Refactored Leaderboard with clean Arcade 3.0+ syntax"""
+    """Refactored Leaderboard with Lap Count in Header"""
 
-    def __init__(self, x: int = 20, width: int = 240, visible: bool = True):
+    # 1. Update __init__ to accept total_laps
+    def __init__(self, x: int = 20, width: int = 240, visible: bool = True, total_laps: int = 0):
         self.x = x
         self.width = width
         self.visible = visible
+        self.total_laps = total_laps  # Store it
         self.entries = []
         self.selected_drivers = set()
 
-        self.row_height = 24  # Increased slightly for better spacing
+        self.row_height = 24
         self.header_height = 40
         self.padding = 10
 
@@ -87,21 +89,23 @@ class LeaderboardComponent(BaseComponent):
         content_height = len(self.entries) * self.row_height
         total_height = self.header_height + content_height + 10
 
-        # Center coordinates for XYWH rectangles (Arcade 3.x uses center-based rects)
         center_x = self.x + (self.width / 2)
         center_y = top_y - (total_height / 2)
 
-        # 2. Draw Background Panel (Single Call)
+        # 2. Draw Background Panel
         panel_rect = arcade.rect.XYWH(center_x, center_y, self.width, total_height)
-        arcade.draw_rect_filled(panel_rect, (20, 20, 25, 220))  # Glassmorphism dark
+        arcade.draw_rect_filled(panel_rect, (20, 20, 25, 220))
         arcade.draw_rect_outline(panel_rect, (255, 255, 255, 40), border_width=1)
 
         # 3. Draw Header
         header_y = top_y - 20
+        
         # Red Accent Bar
         arcade.draw_rect_filled(
             arcade.rect.XYWH(self.x + 4, header_y, 4, 24), (255, 40, 40)
         )
+        
+        # Title "LEADERBOARD"
         arcade.draw_text(
             "LEADERBOARD",
             self.x + 18,
@@ -113,11 +117,30 @@ class LeaderboardComponent(BaseComponent):
             anchor_y="center",
         )
 
+        # --- NEW: Draw Lap Count (Right Aligned) ---
+        if self.entries:
+            # Get lap from the leader (index 0)
+            current_lap = int(self.entries[0].get("lap", 0))
+            # Ensure it doesn't exceed total (visual fix for finish line)
+            display_lap = min(current_lap, self.total_laps)
+            
+            lap_text = f"LAP {display_lap}/{self.total_laps}"
+            
+            arcade.draw_text(
+                lap_text,
+                self.x + self.width - 15,  # Right align with some padding
+                header_y,
+                arcade.color.LIGHT_GRAY,   # Subtle gray color
+                12,
+                bold=True,
+                anchor_x="right",
+                anchor_y="center",
+            )
+
         # 4. Draw Rows
         list_top_y = top_y - self.header_height
 
         for i, entry in enumerate(self.entries):
-            # Row Center Y
             row_y = list_top_y - (i * self.row_height) - (self.row_height / 2)
 
             driver = entry.get("driver", "???")
@@ -137,7 +160,7 @@ class LeaderboardComponent(BaseComponent):
                 )
                 arcade.draw_rect_filled(row_rect, (255, 255, 255, 10))
 
-            # Data Points
+            # Position
             arcade.draw_text(
                 f"P{entry.get('position', 0)}",
                 self.x + 10,
@@ -148,6 +171,7 @@ class LeaderboardComponent(BaseComponent):
                 anchor_y="center",
             )
 
+            # Driver Name
             arcade.draw_text(
                 driver.upper(),
                 self.x + 45,
@@ -158,10 +182,8 @@ class LeaderboardComponent(BaseComponent):
                 anchor_y="center",
             )
 
-            # Tyre Visual
-            tyre_x = (
-                self.x + self.width - 30
-            )  #  increase the constant to move tyre icon left -30 on x axis for me
+            # Tyre Icon
+            tyre_x = self.x + self.width - 30
             arcade.draw_circle_filled(tyre_x, row_y, 12, (10, 10, 10))
             arcade.draw_circle_outline(tyre_x, row_y, 9.5, tyre_color, border_width=2)
             arcade.draw_text(
@@ -175,19 +197,15 @@ class LeaderboardComponent(BaseComponent):
                 anchor_y="center",
             )
 
-    def on_mouse_press(
-        self, window, x: float, y: float, button: int, modifiers: int
-    ) -> bool:
+    def on_mouse_press(self, window, x: float, y: float, button: int, modifiers: int) -> bool:
         if not self.visible or not self.entries:
             return False
 
-        # 1. Horizontal Boundary Check
         if not (self.x <= x <= self.x + self.width):
             return False
 
         list_start_y = window.height - 60 - self.header_height
 
-        # 2. Iterate through rows to find the click target
         for i, entry in enumerate(self.entries):
             row_top = list_start_y - (i * self.row_height)
             row_bottom = row_top - self.row_height
@@ -195,18 +213,11 @@ class LeaderboardComponent(BaseComponent):
             if row_bottom <= y <= row_top:
                 driver = entry.get("driver")
                 if driver:
-                    # Check if the clicked driver is already the one selected
                     was_selected = driver in self.selected_drivers
-
-                    # SINGLE SELECTION: Clear all previous highlights
                     self.selected_drivers.clear()
-
-                    # If it wasn't selected before, select it now.
-                    # (This allows you to click a driver once to highlight, and again to un-highlight)
                     if not was_selected:
                         self.selected_drivers.add(driver)
-
-                return True  # Event handled, stop checking other rows
+                return True
 
         return False
 
@@ -599,48 +610,30 @@ class DriverInfoComponent(BaseComponent):
         # ---------------------------------------------------------
         current_y = panel_center_y + (panel_height / 2) - 35
         
-        # --- DRIVER NAME (Full Name) ---
+        # --- DRIVER NAME ---
         driver_code = self.driver_data.get("driver", "???")
-        # Lookup full name, default to code if not found
         full_name = self.driver_names.get(driver_code, driver_code)
         
-        # Adjust font size: Smaller for full names (e.g. "Max Verstappen"), larger for codes
         font_size = 17
-        
-        arcade.draw_text(
-            full_name, 
-            self.left + 20, 
-            current_y, 
-            arcade.color.WHITE, 
-            font_size, 
-            bold=True
-        )
+        arcade.draw_text(full_name, self.left + 20, current_y, arcade.color.WHITE, font_size, bold=True)
 
         current_y -= 45
 
-        # --- SPEED (Left Side) ---
+        # --- SPEED ---
         speed = int(self.driver_data.get("speed", 0))
         arcade.draw_text(f"{speed}", self.left + 20, current_y, arcade.color.WHITE, 27, bold=True)
         arcade.draw_text("km/h", self.left + 95, current_y, arcade.color.GRAY, 16)
         
-        # --- GEAR (Right Side) ---
+        # --- GEAR ---
         gear = self.driver_data.get("gear", 0)
         gear_str = str(gear) if gear > 0 else "N"
         
-        # Gear Box Position
         gear_x = self.left + self.width - 40
         gear_box_y = current_y + 15
         
-        # Box
         arcade.draw_rect_outline(arcade.rect.XYWH(gear_x, gear_box_y, 30, 30), arcade.color.WHITE, 2)
-        
-        # Number
-        arcade.draw_text(gear_str, gear_x, gear_box_y, arcade.color.CYAN, 20, 
-                         bold=True, anchor_x="center", anchor_y="center")
-        
-        # "GEAR" Label (Below the box)
-        arcade.draw_text("GEAR", gear_x, gear_box_y - 32, arcade.color.GRAY, 9, 
-                         anchor_x="center", bold=True)
+        arcade.draw_text(gear_str, gear_x, gear_box_y, arcade.color.CYAN, 20, bold=True, anchor_x="center", anchor_y="center")
+        arcade.draw_text("GEAR", gear_x, gear_box_y - 32, arcade.color.GRAY, 9, anchor_x="center", bold=True)
 
         # ---------------------------------------------------------
         # BOTTOM SECTION: Animated Pedals
@@ -654,27 +647,28 @@ class DriverInfoComponent(BaseComponent):
 
         # --- THROTTLE (Green) ---
         thr_x = center_x + 30
-        # Background
         arcade.draw_rect_filled(arcade.rect.XYWH(thr_x, bars_bottom_y + max_bar_height/2, bar_width, max_bar_height), (20, 20, 20))
         arcade.draw_rect_outline(arcade.rect.XYWH(thr_x, bars_bottom_y + max_bar_height/2, bar_width, max_bar_height), (100, 100, 100), 1)
-        # Fill
+        
         thr_height = (throttle / 100) * max_bar_height
         if thr_height > 0:
             arcade.draw_rect_filled(arcade.rect.XYWH(thr_x, bars_bottom_y + thr_height/2, bar_width - 4, thr_height), (0, 255, 0))
-        # Label
         arcade.draw_text("THR", thr_x, bars_bottom_y - 12, arcade.color.GRAY, 10, anchor_x="center")
 
-        # --- BRAKE (Red) ---
+        # --- BRAKE (Red - Binary/Full) ---
         brk_x = center_x - 30
-        # Background
         arcade.draw_rect_filled(arcade.rect.XYWH(brk_x, bars_bottom_y + max_bar_height/2, bar_width, max_bar_height), (20, 20, 20))
         arcade.draw_rect_outline(arcade.rect.XYWH(brk_x, bars_bottom_y + max_bar_height/2, bar_width, max_bar_height), (100, 100, 100), 1)
-        # Fill
-        safe_brake = min(100, max(0, brake))
-        brk_height = (safe_brake / 100) * max_bar_height
-        if brk_height > 0:
-            arcade.draw_rect_filled(arcade.rect.XYWH(brk_x, bars_bottom_y + brk_height/2, bar_width - 4, brk_height), (255, 0, 0))
-        # Label
+        
+        # LOGIC FIX: Check against 0.1 instead of 1
+        # This catches boolean True (1.0) AND percentage pressure (>1%)
+        if brake > 0.1: 
+            brk_height = max_bar_height
+            arcade.draw_rect_filled(
+                arcade.rect.XYWH(brk_x, bars_bottom_y + brk_height/2, bar_width - 4, brk_height), 
+                (255, 0, 0)
+            )
+            
         arcade.draw_text("BRK", brk_x, bars_bottom_y - 12, arcade.color.GRAY, 10, anchor_x="center")
 
 
@@ -1133,7 +1127,7 @@ class F1RaceReplayWindow(arcade.Window):
         self.background_time = 0.0
 
         # UI components
-        self.leaderboard_comp = LeaderboardComponent(visible=visible_hud)
+        self.leaderboard_comp = LeaderboardComponent(visible=visible_hud, total_laps=self.total_laps)
         self.weather_comp = WeatherComponent(left=70,visible=visible_hud)
         self.driver_names = driver_names or {}
         self.legend_comp = LegendComponent(visible=visible_hud)
