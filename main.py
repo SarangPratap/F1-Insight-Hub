@@ -285,7 +285,7 @@ class F1InsightHubLauncher(QMainWindow):
             }""")
 
         # 3. Intelligence Module Button
-        self.btn_intelligence = QPushButton("RaceIntelligence")
+        self.btn_intelligence = QPushButton("RaceIntelligence\n(Coming Soon)")
         self.btn_intelligence.setFixedSize(370, 220)
         self.btn_intelligence.setEnabled(False)
         self.btn_intelligence.setStyleSheet("""
