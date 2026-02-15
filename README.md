@@ -6,44 +6,40 @@
 
 > **Lightning-fast Formula 1 telemetry analysis and race visualization**
 
-A Python-based Formula 1 data visualization and analytics platform that brings real-time telemetry, race replays, and predictive insights to life.
+A Python-based Formula 1 data visualization and analytics platform that brings race replays, telemetry analysis, and performance insights to life — powered by the FastF1 API.
 
 ---
 
 ## 🎯 Key Features
 
 **⚡ Blazingly Fast**
-- Real-time race visualization with Arcade 3D engine
+- Real-time 2D race visualization with Arcade engine
 - Optimized telemetry processing with Pandas & NumPy
-- Live data streaming from FastF1 API
+- On-demand data fetching from the FastF1 API with local caching
 
 **📊 Powerful Analytics**
 - Performance comparisons between drivers
-- Tire strategy visualization
-- Weather impact analysis
-- Lap-by-lap detailed metrics
+- Tyre strategy visualization
+- Weather impact analysis (day/night detection, rain, fog)
+- Lap-by-lap detailed metrics & sector times
 
 **🚀 Modular Design**
-- Vision module for 3D race replay
+- Vision module for 2D animated race replay
 - Analytics module for statistical deep dives
-- Intelligence module (coming soon) for predictive insights
+- Intelligence module (future work) for predictive insights
 
 ---
 
 ## 📦 Modules
 
-### 🏁 Module Vision
-3D race visualization with real-time telemetry replay, powered by **Arcade Engine**.
+### 🏁 RaceVision
+2D animated race replay with real-time telemetry, powered by the **Arcade** engine. Features include a live leaderboard, animated weather widget, DRS zone overlay, driver info panel with throttle/brake animations, and variable-speed playback (0.1× to 256×).
 
-**[Add screenshot here]**
+### 📈 RaceAnalytics
+Post-race performance analytics built with **PySide6** and **Matplotlib**. Includes race summary cards (winner, fastest lap, top speed, sectors), fastest lap delta bar chart, and interactive lap progression plots with tyre stint markers.
 
-### 📈 Module Analytics
-Performance analytics including lap times, pace comparisons, tire strategies, and driver statistics.
-
-**[Add screenshot here]**
-
-### 🤖 Module Intelligence
-*Coming Soon* - ML-powered race strategy simulations and predictive modeling.
+### 🤖 RaceIntelligence
+*Future Work* — ML-powered race strategy simulations and predictive modeling using Scikit-learn.
 
 ---
 
@@ -60,15 +56,15 @@ Performance analytics including lap times, pace comparisons, tire strategies, an
                               │
                 ┌─────────────┼─────────────┐
                 │             │             │
-         ┌──────▼──────┐  ┌──▼──────┐  ┌──▼─────────┐
-         │   Vision    │  │Analytics│  │Intelligence│
-         │   Module    │  │ Module  │  │  Module    │
-         │             │  │         │  │            │
-         │  Arcade 3D  │  │Pandas   │  │Scikit-learn│
-         │  Engine     │  │Matplotlib
-         └──────┬──────┘  └──┬──────┘  └──┬─────────┘
-                │             │             │
-                └─────────────┼─────────────┘
+         ┌──────▼──────┐  ┌──▼──────────┐  ┌──▼─────────┐
+         │   Vision    │  │  Analytics  │  │Intelligence│
+         │   Module    │  │   Module    │  │  (Future)  │
+         │             │  │             │  │            │
+         │  Arcade 2D  │  │  PySide6 +  │  │Scikit-learn│
+         │  Engine     │  │  Matplotlib │  │            │
+         └──────┬──────┘  └──┬──────────┘  └──┬─────────┘
+                │             │                │
+                └─────────────┼────────────────┘
                               │
                  ┌────────────▼────────────┐
                  │   Data Engine           │
@@ -77,15 +73,17 @@ Performance analytics including lap times, pace comparisons, tire strategies, an
                  │ • Session Loading       │
                  │ • Telemetry Processing  │
                  │ • Weather Analysis      │
+                 │ • Local Caching (.pkl)  │
                  └────────────┬────────────┘
                               │
                  ┌────────────▼────────────┐
                  │   FastF1 API            │
-                 │  (F1 Live Data)         │
+                 │  (F1 Official Timing)   │
                  │                         │
                  │ • Timing Data           │
                  │ • Car Telemetry         │
-                 │ • Weather Updates       │
+                 │ • Weather Data          │
+                 │ • Track Status Events   │
                  └─────────────────────────┘
 ```
 
@@ -95,11 +93,11 @@ Performance analytics including lap times, pace comparisons, tire strategies, an
 
 | Component | Technology |
 |-----------|-----------|
-| **Frontend** | PySide6 (Qt Framework) |
-| **Visualization** | Arcade 3D Engine |
-| **Data Processing** | Pandas, NumPy, SciPy |
-| **Analysis** | Scikit-learn, Matplotlib |
-| **Data Source** | FastF1 3.7.0 API |
+| **Main GUI** | PySide6 (Qt 6) |
+| **Race Replay** | Arcade 2D Engine |
+| **Data Processing** | Pandas, NumPy |
+| **Charting** | Matplotlib |
+| **Data Source** | FastF1 API (≥ 3.0) |
 | **Python** | 3.11+ |
 
 ---
@@ -111,15 +109,20 @@ Performance analytics including lap times, pace comparisons, tire strategies, an
 git clone https://github.com/SarangPratap/F1-Insight-Hub.git
 cd F1-MainV2
 
-# Create conda environment
-conda create -n f1 python=3.11
+# (Recommended) Create a virtual environment
+python -m venv venv
 
-# Activate environment
-conda activate f1
+# On Windows:
+venv\Scripts\activate
+
+# On macOS/Linux:
+source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
 ```
+
+> **Note:** The first time you select a race, FastF1 will download and cache the session data. This can take 1–3 minutes depending on your internet speed. Subsequent loads are instant from local cache.
 
 ---
 
@@ -130,9 +133,22 @@ python main.py
 ```
 
 Then:
-1. Select a season and Grand Prix
-2. Choose Race or Sprint session
-3. Click to launch visualization or analytics
+1. Select a **season year** (2018–2025) from the dropdown
+2. Click on a **race** in the calendar
+3. Choose **Race** or **Sprint** session
+4. Click **RaceVision** or **RaceAnalytics** to launch
+
+### RaceVision Controls
+
+| Key | Action |
+|-----|--------|
+| `Space` | Pause / Resume |
+| `←` / `→` | Rewind / Forward |
+| `↑` / `↓` | Increase / Decrease speed |
+| `R` | Restart |
+| `D` | Toggle DRS zones |
+| `L` | Toggle driver labels |
+| `H` | Toggle help panel |
 
 ---
 
@@ -140,14 +156,16 @@ Then:
 
 ```
 F1-MainV2/
-├── main.py                 # Dashboard launcher
-├── data_engine.py          # Data fetching & processing
-├── module_vision.py        # Arcade 3D visualization
-├── module_analytics.py     # Performance analytics
-├── module_intelligence.py  # (Coming Soon)
-├── config.py               # Settings & constants
-├── requirements.txt        # Dependencies
-└── data/                   # Cached race data
+├── main.py                 # Main dashboard launcher (PySide6)
+├── config.py               # Shared settings, colors, constants
+├── data_engine.py          # Data fetching, processing & caching
+├── module_vision.py        # RaceVision: 2D race replay (Arcade)
+├── module_analytics.py     # RaceAnalytics: charts & statistics (PySide6 + Matplotlib)
+├── requirements.txt        # Python dependencies
+├── assets/
+│   └── Banner.png          # Project banner image
+└── data/
+    └── cache/              # Cached race data (auto-generated)
 ```
 
 ---
@@ -155,76 +173,51 @@ F1-MainV2/
 ## 🔄 Data Flow
 
 ```
-User Selection → Validation → Data Fetch → Processing → Visualization/Analysis
+User Selection → FastF1 API → Data Engine → Module Rendering
 ```
 
-- **FastF1 API** pulls live timing data from official F1 servers
-- **Data Engine** caches results locally for faster access
-- **Each Module** processes data according to its needs
-- **Results** displayed in real-time or as static analysis
-
----
-
-
+- **FastF1 API** fetches timing data on-demand from official F1 servers
+- **Data Engine** processes telemetry in parallel (multiprocessing) and caches results locally as `.pkl` files
+- **RaceVision** uses frame-by-frame telemetry resampled at 25 FPS
+- **RaceAnalytics** uses `session.laps` directly for aggregated analysis
 
 ---
 
 ## 🎯 Features at a Glance
 
-✨ Real-time telemetry visualization  
-✨ Race replay with adjustable playback speed  
+✨ Animated 2D race replay with track map and car positions  
+✨ Race replay with adjustable playback speed (0.1× to 256×)  
 ✨ Driver performance comparisons  
-✨ Weather impact analysis  
-✨ Tire strategy visualization  
-✨ Lap-by-lap detailed metrics  
+✨ Animated weather system (sun, rain, moon, fog — day/night aware)  
+✨ Tyre strategy visualization with stint markers  
+✨ Lap-by-lap detailed metrics & sector times  
 
 ---
 
 ## 🔮 Roadmap
 
-- [ ] Module Intelligence with ML predictions
+- [ ] RaceIntelligence module with ML predictions
 - [ ] Historical season comparisons
-- [ ] Custom race scenarios
-- [ ] Real-time race notifications
 - [ ] Export analytics to PDF/Excel
+- [ ] Qualifying session replay in RaceVision
 
 ---
 
-## 📚 Documentation
-
-- [User Guide](./docs/user-guide.md)
-- [API Reference](./docs/api-reference.md)
-- [Contributing](./CONTRIBUTING.md)
-
----
-
-## 💬 Community
-
-- [Discussions](https://github.com/SarangPratap/F1-Insight-Hub/discussions)
-- [Issues](https://github.com/SarangPratap/F1-Insight-Hub/issues)
-
----
-
-## � Contributors
+## 👥 Contributors
 
 This project is built and maintained by:
-- **Sarang Pratap** - Core development, visualization architecture , data processing
-- **Avishkar Sanjay Potale** - Core development, Analytics module, visualization architecture
+- **Sarang Pratap** — Core development, visualization architecture, data processing
+- **Avishkar Sanjay Potale** — Core development, analytics module, visualization architecture
 
 ---
 
 ## 🙏 Acknowledgments
 
 Special thanks to:
-- [**F1 Race Replay**](https://github.com/IAmTomShaw/f1-race-replay) by Tom Shaw - Inspiration for telemetry visualization and race replay mechanics
-- [**FastF1**](https://github.com/theOehrly/Fast-F1) - Official F1 telemetry data API
+- [**F1 Race Replay**](https://github.com/IAmTomShaw/f1-race-replay) by Tom Shaw — Inspiration for telemetry visualization and race replay mechanics
+- [**FastF1**](https://github.com/theOehrly/Fast-F1) — Official F1 telemetry data API
+- [**Arcade**](https://api.arcade.academy/) — Python game engine for the RaceVision module
 - The F1 and open-source communities for their contributions and support
-
----
-
-## �📄 License
-
-MIT License - see LICENSE file for details
 
 ---
 
