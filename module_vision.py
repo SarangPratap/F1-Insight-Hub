@@ -509,8 +509,6 @@ class WeatherComponent(BaseComponent):
 
 
 class RaceProgressBarComponent(BaseComponent):
-    """Vertical progress bar anchored to the left side"""
-
     # Event type constants (Same as before)
     EVENT_DNF = "dnf"
     EVENT_YELLOW_FLAG = "yellow"
@@ -541,7 +539,6 @@ class RaceProgressBarComponent(BaseComponent):
         self.progress = max(0.0, min(1.0, progress))
 
     def on_resize(self, window):
-        """Resize vertically based on window height"""
         # Leave 60px padding at top and bottom
         vertical_padding = 60
         self.height = window.height - (vertical_padding * 2)
@@ -578,8 +575,6 @@ class RaceProgressBarComponent(BaseComponent):
 
 
 class DriverInfoComponent(BaseComponent):
-    """Display detailed info with Full Name, No DRS, and Gear Label"""
-
     def __init__(self, left: int = 20, width: int = 200, driver_names: Dict = None):
         self.left = left
         self.width = width
@@ -673,8 +668,6 @@ class DriverInfoComponent(BaseComponent):
 
 
 class LegendComponent(BaseComponent):
-    """Display controls legend anchored to the bottom-right"""
-
     def __init__(self, visible: bool = True):
         # We drop the 'x' argument because position is now dynamic
         self.visible = visible
@@ -686,13 +679,11 @@ class LegendComponent(BaseComponent):
         self.y = 0
 
     def on_resize(self, window):
-        """Calculate position relative to the bottom-right corner"""
         padding = 20  # Space from the edge of the window
         self.x = window.width - self.width - padding
         self.y = padding  # Start 20 pixels up from the bottom edge (y=0 in Arcade)
 
     def draw(self, window):
-        """Draw legend with transparent background"""
         if not self.visible:
             return
 
@@ -707,7 +698,6 @@ class LegendComponent(BaseComponent):
         current_y -= 25
 
         # Draw list items
-        # Added a slight shadow effect (black text behind white) to make it readable on any background
         labels = [
             "SPACE: Pause/Resume",
             "←/→: Rewind/Forward",
@@ -727,13 +717,10 @@ class LegendComponent(BaseComponent):
 
 
 class SessionInfoComponent(BaseComponent):
-    """Display session information banner"""
-
     def __init__(self, session_info: Optional[Dict[str, Any]] = None):
         self.session_info = session_info or {}
 
     def draw(self, window):
-        """Draw session info banner"""
         if not self.session_info:
             return
 
@@ -762,21 +749,6 @@ class SessionInfoComponent(BaseComponent):
 def build_track_from_example_lap(
     example_lap, track_width: float = DEFAULT_TRACK_WIDTH
 ) -> Tuple:
-    """
-    Build track geometry from example lap telemetry
-
-    Args:
-        example_lap: Telemetry data with X, Y coordinates (pandas DataFrame)
-        track_width: Width of track in meters
-
-    Returns:
-        Tuple with track geometry data:
-        (plot_x_ref, plot_y_ref, x_inner, y_inner, x_outer, y_outer,
-         x_min, x_max, y_min, y_max, drs_zones)
-
-    Raises:
-        ValueError: If example_lap is invalid or missing required columns
-    """
     # Validation 1: Check if example_lap exists
     if example_lap is None:
         raise ValueError("example_lap cannot be None")
@@ -863,8 +835,6 @@ def build_track_from_example_lap(
 
 
 def plot_drs_zones(example_lap) -> List[Dict[str, Any]]:
-    """Extract DRS zones from telemetry
-    """
     # Validation: Check if DRS column exists
     if "DRS" not in example_lap.columns:
         print("⚠️ Warning: No DRS column in telemetry data")
@@ -942,17 +912,6 @@ def plot_drs_zones(example_lap) -> List[Dict[str, Any]]:
 def extract_race_events(
     frames: List[Dict], track_statuses: List[Dict], total_laps: int
 ) -> List[Dict[str, Any]]:
-    """
-    Extract race events from frame data
-
-    Args:
-        frames: List of telemetry frames
-        track_statuses: List of track status events
-        total_laps: Total number of laps
-
-    Returns:
-        List of event dictionaries for timeline display
-    """
     events = []
 
     if not frames:
@@ -1006,8 +965,6 @@ def extract_race_events(
     return events
 
 class EventOverlayComponent(BaseComponent):
-    """Displays blinking status text at the bottom of the screen"""
-
     def __init__(self, track_statuses):
         self.track_statuses = track_statuses
         self.visible = True
@@ -1017,7 +974,6 @@ class EventOverlayComponent(BaseComponent):
             return
 
         # 1. Find the active status for the current replay time
-        # We look for the latest status that started before 'current_time'
         active_status = "1" # Default to Green/Normal
         for status in self.track_statuses:
             if status["start_time"] > current_time:
@@ -1065,8 +1021,6 @@ class EventOverlayComponent(BaseComponent):
 
 
 class F1RaceReplayWindow(arcade.Window):
-    """Main window for race replay visualization"""
-
     def __init__(
         self,
         frames: List[Dict],
@@ -1082,22 +1036,6 @@ class F1RaceReplayWindow(arcade.Window):
         session_info: Optional[Dict] = None,
         driver_names: Optional[Dict] = None,
     ):
-        """
-        Initialize the race replay window
-
-        Args:
-            frames: List of telemetry frames
-            track_statuses: List of track status events
-            example_lap: Reference lap for track layout
-            drivers: List of driver codes
-            title: Window title
-            playback_speed: Initial playback speed
-            driver_colors: Dictionary of driver colors
-            circuit_rotation: Track rotation angle in degrees
-            total_laps: Total number of laps in race
-            visible_hud: Show/hide HUD elements
-            session_info: Session metadata for display
-        """
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, title, resizable=True)
         self.maximize()
 
@@ -1162,7 +1100,6 @@ class F1RaceReplayWindow(arcade.Window):
         self._calculate_scale_and_offsets()
 
     def _draw_dynamic_background(self):
-        """Draw clean HUD-style background"""
         # Get current weather for color scheme
         weather_condition = "clear"
         if self.n_frames > 0:
@@ -1193,7 +1130,6 @@ class F1RaceReplayWindow(arcade.Window):
         self._draw_minimal_grid(accent_color)
 
     def _draw_minimal_grid(self, accent_color):
-        """Draw minimal HUD-style grid"""
         grid_size = 80
         alpha = 15  # Very subtle
         
@@ -1231,7 +1167,6 @@ class F1RaceReplayWindow(arcade.Window):
         arcade.draw_line(self.width, 0, self.width, corner_size, corner_color, 2)
 
     def _calculate_scale_and_offsets(self):
-        """Calculate scaling for track rendering"""
         track_width_m = self.x_max - self.x_min
         track_height_m = self.y_max - self.y_min
 
@@ -1248,16 +1183,6 @@ class F1RaceReplayWindow(arcade.Window):
         self.offset_y = self.height / 2
 
     def _world_to_screen(self, x: float, y: float) -> Tuple[float, float]:
-        """
-        Convert world coordinates to screen coordinates with rotation
-
-        Args:
-            x: World X coordinate
-            y: World Y coordinate
-
-        Returns:
-            Tuple of (screen_x, screen_y)
-        """
         # Translate to origin
         tx = x - self.track_center_x
         ty = y - self.track_center_y
@@ -1273,10 +1198,8 @@ class F1RaceReplayWindow(arcade.Window):
         return sx, sy
 
     def on_draw(self):
-        """Render the race replay"""
         self.clear()
         
-        # Draw modern animated background
         self._draw_dynamic_background()
 
         if self.n_frames == 0:
@@ -1314,9 +1237,7 @@ class F1RaceReplayWindow(arcade.Window):
         self._draw_playback_info(frame)
 
     def _draw_track(self):
-        """Draw the race track with alternating red/white curbs"""
-        
-        # 1. Draw the Center Line (remains a continuous strip)
+        # 1. Draw the Center Line 
         center_points = [
             self._world_to_screen(x, y)
             for x, y in zip(self.plot_x_ref, self.plot_y_ref)
@@ -1341,7 +1262,6 @@ class F1RaceReplayWindow(arcade.Window):
                 segment = points[i : i + segment_length + 1]
                 
                 # Determine color based on even/odd chunk index
-                # (i // segment_length) gives us 0, 1, 2, 3...
                 if (i // segment_length) % 2 == 0:
                     color = (255, 0, 0)      # Red
                 else:
@@ -1365,7 +1285,6 @@ class F1RaceReplayWindow(arcade.Window):
             arcade.draw_circle_filled(start_x, start_y, 6, (0, 0, 0))
 
     def _draw_drs_zones(self):
-        """Draw DRS zones on track"""
         for zone in self.drs_zones:
             # 1. Get the start and end indices from the data
             start_idx = zone["start"]["index"]
@@ -1374,7 +1293,6 @@ class F1RaceReplayWindow(arcade.Window):
             # 2. Collect all screen coordinates for points inside this zone
             drs_points = []
             
-            # We loop through every point in the reference path belonging to this zone
             for i in range(start_idx, end_idx + 1):
                 # Get the world X, Y from the stored reference lap
                 wx = self.plot_x_ref.iloc[i]
@@ -1389,7 +1307,6 @@ class F1RaceReplayWindow(arcade.Window):
                 arcade.draw_line_strip(drs_points, (100, 255, 100, 150), 10)
 
     def _draw_drivers(self, frame: Dict):
-        """Draw driver positions on track"""
         drivers_data = frame.get("drivers", {})
 
         for driver_code, data in drivers_data.items():
@@ -1412,10 +1329,8 @@ class F1RaceReplayWindow(arcade.Window):
                 )
 
     def _update_and_draw_ui(self, frame: Dict):
-        """Update and draw all UI components"""
         drivers_data = frame.get("drivers", {})
 
-        # Update leaderboard
         entries = []
         for driver_code, data in sorted(
             drivers_data.items(), key=lambda x: x[1].get("position", 999)
@@ -1432,7 +1347,6 @@ class F1RaceReplayWindow(arcade.Window):
         self.leaderboard_comp.set_entries(entries)
         self.leaderboard_comp.draw(self)
 
-        # Update weather
         weather = frame.get("weather")
         if weather:
             self.weather_comp.set_weather(weather)
@@ -1467,7 +1381,6 @@ class F1RaceReplayWindow(arcade.Window):
                 self.driver_info_comp.draw(self)
 
     def _draw_playback_info(self, frame: Dict):
-        """Draw playback controls and info"""
         # Playback speed
         speed_text = f"Speed: {self.playback_speed}x"
         arcade.draw_text(speed_text, 70, 50, arcade.color.WHITE, 12)
@@ -1482,7 +1395,6 @@ class F1RaceReplayWindow(arcade.Window):
         arcade.draw_text(time_text, 70, 10, arcade.color.WHITE, 12)
 
     def on_update(self, delta_time: float):
-        """Update animation"""
         # Update background timer for minimal effects
         self.background_time += delta_time
         
@@ -1493,7 +1405,6 @@ class F1RaceReplayWindow(arcade.Window):
                 self.frame_index = 0.0
 
     def on_key_press(self, key: int, modifiers: int):
-        """Handle keyboard input"""
         if key == arcade.key.SPACE:
             self.paused = not self.paused
         elif key == arcade.key.R:
@@ -1524,11 +1435,9 @@ class F1RaceReplayWindow(arcade.Window):
             self.legend_comp.visible = not self.legend_comp.visible
 
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int):
-        """Handle mouse clicks"""
         self.leaderboard_comp.on_mouse_press(self, x, y, button, modifiers)
 
     def on_resize(self, width: int, height: int):
-        """Handle window resize"""
         super().on_resize(width, height)
         self._calculate_scale_and_offsets()
         self.leaderboard_comp.on_resize(self)
@@ -1547,15 +1456,6 @@ def run_vision_module(
     session_type: str = "R",
     ready_file: Optional[str] = None,
 ):
-    """
-    Launch the vision module
-
-    Args:
-        year: Season year
-        round_number: Round number
-        session_type: 'R' (Race), 'Q' (Qualifying), 'S' (Sprint), or 'SQ' (Sprint Qualifying)
-        ready_file: Optional file path to signal readiness to parent process
-    """
     print(f"🏎️ F1 Insight Hub - Vision Module")
     print(f"Loading: {year} Season, Round {round_number}, Session {session_type}")
 

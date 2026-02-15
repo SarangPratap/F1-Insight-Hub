@@ -350,8 +350,6 @@ class AnalyticsWindow(QMainWindow):
             QListWidget::item:selected { background-color: #e10600; color: white; }
         """)
         
-        # Populate Drivers (Sort by finishing position if available, else name)
-        # Using self.session.drivers gives driver numbers. We want Abbreviations.
         drivers_to_show = []
         try:
             # Try to get results to sort by position
@@ -394,9 +392,7 @@ class AnalyticsWindow(QMainWindow):
         driver = item.text()
         self.pace_ax.clear()
 
-        # 1. Determine Threshold for "Clean" Laps
-        # We filter out very slow laps (Safety Car, In/Out laps) to keep the graph readable.
-        # Threshold = 115% of the absolute fastest lap of the race.
+        
         threshold = 9999
         try:
             fastest_lap = self.laps.pick_fastest()
@@ -415,7 +411,6 @@ class AnalyticsWindow(QMainWindow):
             pass
 
         # 3. Plot Leader Comparison (Dotted Line)
-        # We plot this FIRST so it stays in the background
         if leader_code and driver != leader_code:
             leader_laps = self.laps.pick_drivers(leader_code)
             if not leader_laps.empty:

@@ -47,17 +47,7 @@ def enable_cache():
 
 
 def load_session(year, round_number, session_type="R"):
-    """
-    Load a FastF1 session
-
-    Args:
-        year: Season year
-        round_number: Round number in calendar
-        session_type: 'R' (Race), 'Q' (Qualifying), 'S' (Sprint), 'SQ' (Sprint Qualifying)
-
-    Returns:
-        FastF1 Session object
-    """
+    
     session_map = {
         "R": "Race",
         "Q": "Qualifying",
@@ -77,15 +67,7 @@ def load_session(year, round_number, session_type="R"):
 
 
 def get_race_weekends_by_year(year):
-    """
-    Get all race weekends for a given year
-
-    Args:
-        year: Season year
-
-    Returns:
-        List of race weekend dictionaries
-    """
+    
     try:
         schedule = fastf1.get_event_schedule(year)
         events = []
@@ -137,15 +119,7 @@ def list_sprints(year):
 
 
 def get_circuit_rotation(session):
-    """
-    Determine circuit rotation angle for better visualization
-
-    Args:
-        session: FastF1 Session object
-
-    Returns:
-        Rotation angle in degrees
-    """
+    
     circuit_name = session.event.get("Location", "")
 
     rotations = {
@@ -179,16 +153,7 @@ def get_circuit_rotation(session):
 # ============================================================================
 
 def calculate_night_race(session, session_time_seconds):
-    """
-    Calculate if a race is happening during night time based on actual session data from FastF1 API
     
-    Args:
-        session: FastF1 Session object
-        session_time_seconds: Time offset in seconds from race start
-        
-    Returns:
-        Boolean indicating if it's a night race
-    """
     try:
         # Primary: Use session_info with StartDate and timezone offset (most accurate)
         if hasattr(session, 'session_info') and session.session_info:
@@ -248,19 +213,7 @@ def calculate_night_race(session, session_time_seconds):
 
 
 def determine_weather_condition(rainfall=0.0, humidity=50.0, air_temp=25.0, track_temp=35.0, is_night=False):
-    """
-    Determine weather condition based on meteorological data and time of day
     
-    Args:
-        rainfall: Rainfall amount (mm)
-        humidity: Humidity percentage (0-100)
-        air_temp: Air temperature (Celsius)
-        track_temp: Track temperature (Celsius)
-        is_night: Whether it's a night race
-        
-    Returns:
-        String describing weather condition
-    """
     # Rain conditions (highest priority)
     if rainfall > 5.0:
         return "night_rain" if is_night else "rain"
@@ -297,15 +250,7 @@ def determine_weather_condition(rainfall=0.0, humidity=50.0, air_temp=25.0, trac
 
 
 def _process_single_driver(args):
-    """
-    Process telemetry data for a single driver (must be top-level for multiprocessing)
-
-    Args:
-        args: Tuple of (driver_no, session, driver_code)
-
-    Returns:
-        Dictionary with processed driver data or None
-    """
+    
     driver_no, session, driver_code = args
 
     print(f"Processing telemetry for driver: {driver_code}")
@@ -333,14 +278,10 @@ def _process_single_driver(args):
     total_dist_so_far = 0.0
 
     # Iterate through laps in order
-    # Iterate through laps in order
     for _, lap in laps_driver.iterlaps():
         try:
-            # FIX: catch FastF1 errors on specific laps (common in older seasons)
             lap_tel = lap.get_telemetry()
         except ValueError:
-            # If "add_driver_ahead" fails, try getting basic telemetry without it
-            # Note: This fallback depends on FastF1 version, but skipping is safer
             print(f"  [Warning] Skipping corrupt lap {int(lap.LapNumber)} for {driver_code}")
             continue
         except Exception as e:
@@ -384,7 +325,7 @@ def _process_single_driver(args):
 
         # Update total distance for next lap
         if len(d_lap) > 0:
-            total_dist_so_far += d_lap[-1]  # Last distance value of the lap
+            total_dist_so_far += d_lap[-1] 
 
     if not t_all:
         return None
@@ -471,17 +412,6 @@ def _process_single_driver(args):
     }
 
 def get_race_telemetry(session, session_type="R", force_refresh=False):
-    """
-    Get processed race telemetry for all drivers with frame-by-frame data
-
-    Args:
-        session: FastF1 Session object
-        session_type: 'R' or 'S'
-        force_refresh: Force recomputation even if cached
-
-    Returns:
-        Dictionary with frames, driver colors, track statuses, and metadata
-    """
     # Check for cached data
     cache_filename = f"{COMPUTED_DATA_DIR}/race_{session.event['EventName'].replace(' ', '_')}_{session.event['RoundNumber']}_{session_type}.pkl"
 
@@ -725,7 +655,6 @@ def get_race_telemetry(session, session_type="R", force_refresh=False):
 
         # Enhanced weather condition determination with night race detection
         if weather_snapshot is not None:
-            # Calculate if it's a night race based on actual session timing data
             is_night_race = calculate_night_race(session, t)
             
             # Determine weather condition based on data and night status
@@ -769,16 +698,6 @@ def get_race_telemetry(session, session_type="R", force_refresh=False):
 
 
 def get_quali_telemetry(session, session_type="Q"):
-    """
-    Get qualifying session results and telemetry
-
-    Args:
-        session: FastF1 Session object
-        session_type: 'Q' or 'SQ'
-
-    Returns:
-        Dictionary with qualifying results and lap data
-    """
     results = []
 
     for driver in session.drivers:
@@ -834,29 +753,11 @@ def get_quali_telemetry(session, session_type="Q"):
 
 
 def prepare_ml_features(session):
-    """
-    Prepare features for machine learning models
-
-    Args:
-        session: FastF1 Session object
-
-    Returns:
-        DataFrame with ML features
-    """
     # Placeholder - to be implemented in Intelligence Module
     pass
 
 
 def calculate_driver_performance_scores(session):
-    """
-    Calculate performance scores for drivers
-
-    Args:
-        session: FastF1 Session object
-
-    Returns:
-        Dictionary with driver scores
-    """
     # Placeholder - to be implemented in Intelligence Module
     pass
 

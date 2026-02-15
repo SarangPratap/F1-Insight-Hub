@@ -62,16 +62,7 @@ DRS_ZONE_COLOR = (100, 255, 100, 80)  # Light green with transparency
 
 
 def get_driver_color(driver_code, session=None):
-    """
-    Get RGB color for a driver using FastF1's team color mapping
-
-    Args:
-        driver_code: 3-letter driver code (e.g., 'VER', 'HAM')
-        session: Optional FastF1 session object for accurate team lookup
-
-    Returns:
-        RGB tuple (r, g, b) with values 0-255
-    """
+    
     try:
         if session:
             # Get color from session data
@@ -87,29 +78,28 @@ def get_driver_color(driver_code, session=None):
         return FALLBACK_DRIVER_COLORS.get(driver_code, (255, 255, 255))
 
 
-# Fallback driver colors (2024 season) if FastF1 lookup fails
 FALLBACK_DRIVER_COLORS = {
-    "VER": (30, 65, 255),  # Red Bull - Max Verstappen
-    "PER": (30, 65, 255),  # Red Bull - Sergio Perez
-    "HAM": (0, 210, 190),  # Mercedes - Lewis Hamilton
-    "RUS": (0, 210, 190),  # Mercedes - George Russell
-    "LEC": (220, 0, 0),  # Ferrari - Charles Leclerc
-    "SAI": (220, 0, 0),  # Ferrari - Carlos Sainz
-    "NOR": (255, 135, 0),  # McLaren - Lando Norris
-    "PIA": (255, 135, 0),  # McLaren - Oscar Piastri
-    "ALO": (0, 120, 80),  # Aston Martin - Fernando Alonso
-    "STR": (0, 120, 80),  # Aston Martin - Lance Stroll
-    "GAS": (70, 155, 255),  # Alpine - Pierre Gasly
-    "OCO": (70, 155, 255),  # Alpine - Esteban Ocon
-    "TSU": (43, 69, 98),  # AlphaTauri - Yuki Tsunoda
-    "RIC": (43, 69, 98),  # AlphaTauri - Daniel Ricciardo
-    "BOT": (165, 0, 40),  # Alfa Romeo - Valtteri Bottas
-    "ZHO": (165, 0, 40),  # Alfa Romeo - Zhou Guanyu
-    "MAG": (182, 186, 189),  # Haas - Kevin Magnussen
-    "HUL": (182, 186, 189),  # Haas - Nico Hulkenberg
-    "ALB": (37, 82, 163),  # Williams - Alexander Albon
-    "SAR": (37, 82, 163),  # Williams - Logan Sargeant
-    "DEV": (255, 200, 0),  # Reserve/Test drivers
+    "VER": (30, 65, 255),  
+    "PER": (30, 65, 255),  
+    "HAM": (0, 210, 190),  
+    "RUS": (0, 210, 190),  
+    "LEC": (220, 0, 0),  
+    "SAI": (220, 0, 0),  
+    "NOR": (255, 135, 0),  
+    "PIA": (255, 135, 0),  
+    "ALO": (0, 120, 80),  
+    "STR": (0, 120, 80),  
+    "GAS": (70, 155, 255),  
+    "OCO": (70, 155, 255),  
+    "TSU": (43, 69, 98),  
+    "RIC": (43, 69, 98),  
+    "BOT": (165, 0, 40),  
+    "ZHO": (165, 0, 40),  
+    "MAG": (182, 186, 189),  
+    "HUL": (182, 186, 189),  
+    "ALB": (37, 82, 163),  
+    "SAR": (37, 82, 163),  
+    "DEV": (255, 200, 0),  
     "LAW": (255, 200, 0),
     "BEA": (255, 200, 0),
 }
@@ -265,5 +255,4 @@ CIRCUIT_ROTATIONS = {
 
 
 def get_circuit_rotation(circuit_name):
-    """Get rotation angle for specific circuit"""
     return CIRCUIT_ROTATIONS.get(circuit_name, 0)
