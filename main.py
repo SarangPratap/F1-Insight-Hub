@@ -69,7 +69,6 @@ class F1InsightHubLauncher(QMainWindow):
         """Setup the main UI layout"""
         
         # --- GLOBAL STYLESHEET ---
-        # Sets White Background, Jura Font, Black Text, and Red Radio Buttons globally
         self.setStyleSheet("""
             QMainWindow, QWidget {
                 background-color: #FFFFFF;
@@ -130,7 +129,7 @@ class F1InsightHubLauncher(QMainWindow):
         central_widget.setLayout(main_layout)
 
         # ====================================================================
-        # 1. NEW HEADER WITH LOGO IMAGE
+        # 1. HEADER
         # ====================================================================
         header_container = QWidget()
         header_layout = QHBoxLayout()
@@ -138,7 +137,6 @@ class F1InsightHubLauncher(QMainWindow):
         header_layout.setSpacing(10)
         header_container.setLayout(header_layout)
 
-        # A. The Logo Image
         logo_label = QLabel()
         logo_pixmap = QPixmap("f1_logo.png") 
         
@@ -146,11 +144,9 @@ class F1InsightHubLauncher(QMainWindow):
             scaled_logo = logo_pixmap.scaledToHeight(85, Qt.SmoothTransformation)
             logo_label.setPixmap(scaled_logo)
         else:
-            # Fallback if image missing
             logo_label.setText("F1") 
             logo_label.setStyleSheet("font-size: 30px; font-weight: bold; color: #e10600;")
         
-        # B. The Text
         title_text = QLabel("Insight Hub")
         title_text.setStyleSheet("font-size: 53px; margin-left: 0px;")
         
@@ -194,11 +190,10 @@ class F1InsightHubLauncher(QMainWindow):
         main_layout.addLayout(year_layout)
 
         # ====================================================================
-        # 3. Calendar (Left) and Sessions (Right)
+        # 3. Calendar & Sessions
         # ====================================================================
         content_layout = QHBoxLayout()
         
-        # --- LEFT SIDE: Calendar ---
         calendar_group = QGroupBox("Race Calendar")
         calendar_layout = QVBoxLayout()
         
@@ -215,11 +210,8 @@ class F1InsightHubLauncher(QMainWindow):
         
         content_layout.addWidget(calendar_group, 3)
 
-        # --- RIGHT SIDE: Session Selection ---
         right_panel_layout = QVBoxLayout()
-        
         session_group = QGroupBox("Select Session Type")
-        # Global stylesheet handles font-family, we just set bold here
         session_group.setStyleSheet("font-weight: bold;")
         
         session_layout = QVBoxLayout()
@@ -229,7 +221,6 @@ class F1InsightHubLauncher(QMainWindow):
         self.session_race.setChecked(True)
         self.session_sprint = QRadioButton("Sprint")
         
-        # Increase font size for options
         opt_style = "font-size: 14px;"
         self.session_race.setStyleSheet(opt_style)
         self.session_sprint.setStyleSheet(opt_style)
@@ -247,11 +238,10 @@ class F1InsightHubLauncher(QMainWindow):
         # ====================================================================
         # 4. Big Square Module Buttons
         # ====================================================================
-        
         buttons_layout = QHBoxLayout()
         buttons_layout.setSpacing(20)
 
-        # 1. Vision Module Button
+        # 1. Vision Module
         self.btn_vision = QPushButton("RaceVision")
         self.btn_vision.setFixedSize(370, 220)
         self.btn_vision.clicked.connect(self.launch_vision_module)
@@ -267,7 +257,7 @@ class F1InsightHubLauncher(QMainWindow):
                 border: 2px solid white;
             }''')
 
-        # 2. Analytics Module Button
+        # 2. Analytics Module
         self.btn_analytics = QPushButton("RaceAnalytics")
         self.btn_analytics.setFixedSize(370, 220)
         self.btn_analytics.setEnabled(True)
@@ -284,17 +274,21 @@ class F1InsightHubLauncher(QMainWindow):
                 border: 2px solid white;
             }""")
 
-        # 3. Intelligence Module Button
-        self.btn_intelligence = QPushButton("RaceIntelligence\n(Coming Soon)")
+        # 3. Intelligence Module (NEW ML UPDATE)
+        self.btn_intelligence = QPushButton("RaceIntelligence")
         self.btn_intelligence.setFixedSize(370, 220)
-        self.btn_intelligence.setEnabled(False)
+        self.btn_intelligence.setEnabled(True) # Enabled!
+        self.btn_intelligence.clicked.connect(self.launch_intelligence_module)
         self.btn_intelligence.setStyleSheet("""
             QPushButton {
-                background-color: #333333;
+                background-color: #e10600;
                 color: white;
                 font-size: 46px;
                 border-radius: 15px;
-                border: 1px solid #444;
+            }
+            QPushButton:hover {
+                background-color: #ff1e00;
+                border: 2px solid white;
             }
         """)
 
@@ -319,7 +313,6 @@ class F1InsightHubLauncher(QMainWindow):
         main_layout.addWidget(self.status_label)
 
     def load_schedule(self):
-        """Load race schedule for selected year"""
         year = int(self.year_combo.currentText())
         self.status_label.setText(f"Loading {year} race calendar...")
 
@@ -329,7 +322,6 @@ class F1InsightHubLauncher(QMainWindow):
         self.worker.start()
 
     def on_schedule_loaded(self, events):
-        """Handle schedule data loaded"""
         self.events_data = events
         self.schedule_tree.clear()
 
@@ -351,12 +343,10 @@ class F1InsightHubLauncher(QMainWindow):
         )
 
     def on_schedule_error(self, error_msg):
-        """Handle schedule loading error"""
         QMessageBox.critical(self, "Error", f"Failed to load schedule: {error_msg}")
         self.status_label.setText("Error loading schedule.")
 
     def on_event_selected(self, item, column):
-        """Handle race event selection"""
         self.selected_event = item.data(0, Qt.UserRole)
         event_name = self.selected_event["event_name"]
         self.status_label.setText(
@@ -364,80 +354,43 @@ class F1InsightHubLauncher(QMainWindow):
         )
 
     def get_selected_session_type(self):
-        """Get the selected session type code"""
         if self.session_sprint.isChecked():
             return "S"
         else:
             return "R"
 
     def launch_vision_module(self):
-        """Launch the Vision Module (Race Replay)"""
         if not self.selected_event:
-            QMessageBox.warning(
-                self,
-                "No Event Selected",
-                "Please select a race event from the calendar first.",
-            )
+            QMessageBox.warning(self, "No Event Selected", "Please select a race event first.")
             return
 
         year = int(self.year_combo.currentText())
         round_number = self.selected_event["round_number"]
         session_type = self.get_selected_session_type()
+        session_name = "Sprint" if session_type == "S" else "Race"
 
-        session_names = {
-            "R": "Race",
-            "S": "Sprint",
-        }
-        session_name = session_names.get(session_type, "Session")
-
-        # Validate session type exists for this event
         event_type = self.selected_event.get("type", "").lower()
-        
         if session_type == "S" and "sprint" not in event_type:
-            error_msg = f"❌ Error: Session type '{session_name}' does not exist for {self.selected_event['event_name']}"
-            self.status_label.setText(error_msg)
-            # QMessageBox.warning(
-            #     self,
-            #     "Session Not Available",
-            #     f"Sprint session is not available for this event.\nPlease select a different session.",
-            # )
+            self.status_label.setText(f"❌ Error: Sprint not available for {self.selected_event['event_name']}")
             return
 
-        self.status_label.setText(
-            f"Loading {session_name} data for {self.selected_event['event_name']}..."
-        )
-
-        # Launch vision module in separate process
-        ready_file = os.path.join(
-            tempfile.gettempdir(), f"f1hub_ready_{uuid.uuid4().hex}.tmp"
-        )
+        self.status_label.setText(f"Loading {session_name} data for {self.selected_event['event_name']}...")
+        ready_file = os.path.join(tempfile.gettempdir(), f"f1hub_ready_{uuid.uuid4().hex}.tmp")
 
         cmd = [
             sys.executable,
             "module_vision.py",
-            "--year",
-            str(year),
-            "--round",
-            str(round_number),
-            "--session",
-            session_type,
-            "--ready-file",
-            ready_file,
+            "--year", str(year),
+            "--round", str(round_number),
+            "--session", session_type,
+            "--ready-file", ready_file,
         ]
-
         try:
             subprocess.Popen(cmd)
-            self.status_label.setText(
-                f"Vision Module launched: {self.selected_event['event_name']} - {session_name}"
-            )
         except Exception as e:
-            QMessageBox.critical(
-                self, "Launch Error", f"Failed to launch Vision Module: {str(e)}"
-            )
-            self.status_label.setText("Error launching module.")
+            QMessageBox.critical(self, "Launch Error", f"Failed to launch Vision Module: {str(e)}")
 
     def launch_analytics_module(self):
-        """Launch the Analytics Module"""
         if not self.selected_event:
             QMessageBox.warning(self, "No Event Selected", "Please select a race event first.")
             return
@@ -455,23 +408,42 @@ class F1InsightHubLauncher(QMainWindow):
             "--round", str(round_number),
             "--session", session_type,
         ]
-
         try:
             subprocess.Popen(cmd)
         except Exception as e:
             QMessageBox.critical(self, "Launch Error", f"Failed to launch Analytics: {str(e)}")
 
+    def launch_intelligence_module(self):
+        """Launch the ML Intelligence Module"""
+        if not self.selected_event:
+            QMessageBox.warning(self, "No Event Selected", "Please select a race event first.")
+            return
+
+        year = int(self.year_combo.currentText())
+        round_number = self.selected_event["round_number"]
+        session_type = self.get_selected_session_type()
+
+        self.status_label.setText(f"Launching Intelligence ML Suite for {self.selected_event['event_name']}...")
+
+        cmd = [
+            sys.executable,
+            "module_intelligence.py",
+            "--year", str(year),
+            "--round", str(round_number),
+            "--session", session_type,
+        ]
+        try:
+            subprocess.Popen(cmd)
+        except Exception as e:
+            QMessageBox.critical(self, "Launch Error", f"Failed to launch Intelligence Module: {str(e)}")
+
 
 def main():
-    """Main entry point"""
     enable_cache()
-
     app = QApplication(sys.argv)
-    app.setStyle("Fusion")  # Modern look
-
+    app.setStyle("Fusion") 
     launcher = F1InsightHubLauncher()
     launcher.show()
-
     sys.exit(app.exec())
 
 
