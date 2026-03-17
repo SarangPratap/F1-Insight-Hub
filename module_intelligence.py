@@ -32,7 +32,7 @@ from config import get_driver_color
 # --- STYLING CONSTANTS ---
 BG_COLOR = "#FFFFFF"
 TEXT_COLOR = "#000000"
-ACCENT_COLOR = "#0055ff"  # Intelligence uses Blue to differentiate from Analytics Red
+ACCENT_COLOR = "#e10600" 
 MENU_BG = "#F5F5F5"
 MENU_SEL_TEXT = "#FFFFFF"
 
@@ -91,7 +91,7 @@ class IntelligenceWindow(QMainWindow):
         header = QLabel("INTELLIGENCE")
         header.setFixedHeight(60)
         header.setAlignment(Qt.AlignCenter)
-        header.setStyleSheet(f"background-color: {ACCENT_COLOR}; color: white; font-size: 22px; font-weight: bold;")
+        header.setStyleSheet(f"background-color: {ACCENT_COLOR}; color: white; font-size: 24px;")
         sidebar_layout.addWidget(header)
 
         # Menu List
@@ -103,9 +103,9 @@ class IntelligenceWindow(QMainWindow):
         """)
         
         items = [
-            ("🧬 Driver DNA (Radar)", 0),
-            ("🔮 Tyre Deg Predictor", 1),
-            ("📐 Cornering Style", 2)
+            ("Driver Score", 0),
+            ("Tyre Deg Predictor", 1),
+            ("Cornering Style", 2)
         ]
         for name, idx in items:
             item = QListWidgetItem(name)
@@ -114,6 +114,14 @@ class IntelligenceWindow(QMainWindow):
 
         self.menu_list.currentRowChanged.connect(self.switch_page)
         sidebar_layout.addWidget(self.menu_list)
+        main_layout.addWidget(sidebar)
+
+        # Footer in Sidebar
+        event_label = QLabel(f"{self.session.event['EventName']}\n{self.year}")
+        event_label.setAlignment(Qt.AlignCenter)
+        event_label.setStyleSheet("color: #e10600; font-size: 18px; padding: 10px;")
+        sidebar_layout.addWidget(event_label)
+
         main_layout.addWidget(sidebar)
 
         # --- RIGHT CONTENT AREA ---
@@ -138,103 +146,165 @@ class IntelligenceWindow(QMainWindow):
         return sorted(pd.unique(self.laps['Driver']))
 
     # ========================================================================
-    # MODEL 1: DRIVER DNA (RADAR CHART)
+    # MODEL 1: DRIVER DNA (RADAR CHART COMPARISON)
     # ========================================================================
     def _create_radar_tab(self):
         page = QWidget()
         layout = QVBoxLayout(page)
         
-        # Controls
+        # Controls Layout (Now supports two drivers)
         ctrl_layout = QHBoxLayout()
-        lbl = QLabel("Select Driver to Analyze:")
-        lbl.setStyleSheet("font-weight:bold; font-size:16px;")
         
-        self.radar_combo = QComboBox()
-        self.radar_combo.addItems(self._get_driver_list())
-        self.radar_combo.currentTextChanged.connect(self._update_radar)
+        lbl1 = QLabel("Driver 1:")
+        lbl1.setStyleSheet("font-weight:bold; font-size:16px;")
+        self.radar_combo1 = QComboBox()
+        self.radar_combo1.addItems(self._get_driver_list())
+        self.radar_combo1.currentTextChanged.connect(self._update_radar)
         
-        ctrl_layout.addWidget(lbl)
-        ctrl_layout.addWidget(self.radar_combo)
+        lbl2 = QLabel("Driver 2 (Compare):")
+        lbl2.setStyleSheet("font-weight:bold; font-size:16px;")
+        self.radar_combo2 = QComboBox()
+        self.radar_combo2.addItem("None") # Allow single driver view
+        self.radar_combo2.addItems(self._get_driver_list())
+        self.radar_combo2.currentTextChanged.connect(self._update_radar)
+        
+        ctrl_layout.addWidget(lbl1)
+        ctrl_layout.addWidget(self.radar_combo1)
+        ctrl_layout.addSpacing(30) # Gap between the two selectors
+        ctrl_layout.addWidget(lbl2)
+        ctrl_layout.addWidget(self.radar_combo2)
         ctrl_layout.addStretch()
+        
         layout.addLayout(ctrl_layout)
 
         # Matplotlib Canvas
         self.radar_canvas = FigureCanvas(Figure(figsize=(8, 8)))
-        # We must create a polar subplot for a radar chart
         self.radar_ax = self.radar_canvas.figure.add_subplot(111, polar=True)
         layout.addWidget(self.radar_canvas)
 
-        self._update_radar(self.radar_combo.currentText())
+        # Trigger initial plot
+        self._update_radar()
         return page
 
-    def _update_radar(self, driver):
-        self.radar_ax.clear()
-        
-        if not driver: return
-        
+    def _calculate_driver_scores(self, driver):
+        """Core ML Algorithm to transform raw lap data into 0-100 scores"""
         drv_laps = self.laps.pick_drivers(driver)
-        if drv_laps.empty: return
+        if drv_laps.empty: 
+            return None
         
-        # --- ML SCORING ALGORITHM (0-100 Scale) ---
-        # 1. Pace (Compared to overall fastest lap)
-        fastest_overall = self.laps.pick_fastest()['LapTime'].total_seconds()
-        drv_fastest = drv_laps.pick_fastest()['LapTime'].total_seconds()
-        # Scale: 100 if equal to fastest, drops off as they get slower
-        pace_score = max(0, 100 - ((drv_fastest - fastest_overall) * 15))
+        # 1. Pace
+        try:
+            fastest_overall = self.laps.pick_fastest()['LapTime'].total_seconds()
+            drv_fastest = drv_laps.pick_fastest()['LapTime'].total_seconds()
+            pace_score = max(0, 100 - ((drv_fastest - fastest_overall) * 15))
+        except:
+            pace_score = 50
         
-        # 2. Consistency (Standard Deviation of normal laps)
-        clean_laps = drv_laps.pick_quicklaps(1.07) # Ignore pit laps
+        # 2. Consistency
+        clean_laps = drv_laps.pick_quicklaps(1.07)
         if not clean_laps.empty:
             std_dev = clean_laps['LapTime'].dt.total_seconds().std()
-            cons_score = max(0, min(100, 100 - (std_dev * 10))) # Lower std = higher score
+            cons_score = max(0, min(100, 100 - (std_dev * 10)))
         else:
             cons_score = 50
 
-        # 3. Top Speed / Aggression
+        # 3. Top Speed
         try:
             max_speed = drv_laps.pick_fastest().get_telemetry()['Speed'].max()
-            grid_max = 350 # Approximate max F1 speed
+            grid_max = 350
             speed_score = min(100, (max_speed / grid_max) * 100)
         except:
             speed_score = 70
 
-        # 4. Sector 1 (Start/Reflexes)
+        # 4. Race Craft (Overtake / Grid Progression)
         try:
-            best_s1 = self.laps['Sector1Time'].dt.total_seconds().min()
-            drv_s1 = drv_laps['Sector1Time'].dt.total_seconds().min()
-            s1_score = max(0, 100 - ((drv_s1 - best_s1) * 25))
-        except:
-            s1_score = 60
+            # Get the driver's result row
+            drv_result = self.session.results.loc[self.session.results['Abbreviation'] == driver].iloc[0]
+            grid_pos = drv_result['GridPosition']
+            finish_pos = drv_result['Position']
             
-        # 5. Tyre Management (Stint flatness)
-        # Simplified: Ratio of fastest lap to average lap
+            # Handle pit lane starts or missing grid data
+            if pd.isna(grid_pos) or grid_pos == 0: 
+                grid_pos = 20  
+                
+            if pd.isna(finish_pos):
+                prog_score = 30 # Heavy penalty for DNF
+            else:
+                positions_gained = grid_pos - finish_pos
+                # Base score is 70. Earn +5 per overtake, lose -5 per position lost
+                prog_score = 70 + (positions_gained * 5)
+                
+                # Winner's / Podium Bonus:
+                # If you start P1 and finish P1, you gained 0 positions, but you drove a perfect race.
+                if finish_pos == 1:
+                    prog_score = max(prog_score, 95)
+                elif finish_pos <= 3:
+                    prog_score = max(prog_score, 85)
+                    
+            prog_score = max(0, min(100, prog_score)) # Clamp between 0-100
+        except:
+            prog_score = 60
+            
+        # 5. Tyre Management
         if not clean_laps.empty:
             avg_pace = clean_laps['LapTime'].dt.total_seconds().mean()
-            tyre_score = max(0, 100 - ((avg_pace - drv_fastest) * 8))
+            tyre_score = max(0, min(100, 100 - ((avg_pace - drv_fastest) * 8)))
         else:
             tyre_score = 50
 
-        # --- PLOTTING RADAR ---
-        categories = ['Pure Pace', 'Consistency', 'Top Speed', 'Sector 1', 'Tyre Mgt']
-        scores = [pace_score, cons_score, speed_score, s1_score, tyre_score]
+        return [pace_score, cons_score, speed_score, prog_score, tyre_score]
+
+    def _update_radar(self, *args):
+        self.radar_ax.clear()
         
-        # To close the radar chart loop, append first value to the end
-        scores += scores[:1]
+        driver1 = self.radar_combo1.currentText()
+        driver2 = self.radar_combo2.currentText()
+        
+        # Updated Categories Array
+        categories = ['Pure Pace', 'Consistency', 'Top Speed', 'Race Craft\n(Progression)', 'Tyre Mgt']
         angles = np.linspace(0, 2 * np.pi, len(categories), endpoint=False).tolist()
-        angles += angles[:1]
+        angles += angles[:1] # Close the circle
         
-        color = f"#{''.join([f'{c:02x}' for c in get_driver_color(driver, self.session)])}"
-        
-        self.radar_ax.plot(angles, scores, color=color, linewidth=2, linestyle='solid')
-        self.radar_ax.fill(angles, scores, color=color, alpha=0.3)
-        
+        valid_drivers_plotted = 0
+
+        # Plot Driver 1
+        if driver1 and driver1 != "None":
+            scores1 = self._calculate_driver_scores(driver1)
+            if scores1:
+                scores1 += scores1[:1]
+                color1 = f"#{''.join([f'{c:02x}' for c in get_driver_color(driver1, self.session)])}"
+                self.radar_ax.plot(angles, scores1, color=color1, linewidth=2.5, linestyle='solid', label=driver1)
+                self.radar_ax.fill(angles, scores1, color=color1, alpha=0.25)
+                valid_drivers_plotted += 1
+
+        # Plot Driver 2 (Comparison)
+        if driver2 and driver2 != "None" and driver2 != driver1:
+            scores2 = self._calculate_driver_scores(driver2)
+            if scores2:
+                scores2 += scores2[:1]
+                color2 = f"#{''.join([f'{c:02x}' for c in get_driver_color(driver2, self.session)])}"
+                self.radar_ax.plot(angles, scores2, color=color2, linewidth=2.5, linestyle='solid', label=driver2)
+                self.radar_ax.fill(angles, scores2, color=color2, alpha=0.25)
+                valid_drivers_plotted += 1
+
         # Styling
         self.radar_ax.set_xticks(angles[:-1])
         self.radar_ax.set_xticklabels(categories, fontsize=12, fontweight='bold')
         self.radar_ax.set_yticks([20, 40, 60, 80, 100])
-        self.radar_ax.set_yticklabels(["20", "40", "60", "80", "100"], color="grey", size=8)
+        self.radar_ax.set_yticklabels(["20", "40", "60", "80", "100"], color="grey", size=9)
         self.radar_ax.set_ylim(0, 100)
-        self.radar_ax.set_title(f"{driver} - DNA Profile Score", size=16, fontweight='bold', pad=20)
+        
+        # Update Title dynamically based on selection
+        if valid_drivers_plotted == 2:
+            self.radar_ax.set_title(f"DNA Comparison: {driver1} vs {driver2}", size=16, fontweight='bold', pad=20)
+        elif valid_drivers_plotted == 1:
+            self.radar_ax.set_title(f"DNA Profile Score: {driver1}", size=16, fontweight='bold', pad=20)
+        else:
+            self.radar_ax.set_title("Driver DNA Profile", size=16, fontweight='bold', pad=20)
+
+        # Show legend if we plotted anything
+        if valid_drivers_plotted > 0:
+            self.radar_ax.legend(loc='upper right', bbox_to_anchor=(1.25, 1.1), prop={'weight':'bold', 'size':12})
         
         self.radar_canvas.draw()
 
@@ -245,16 +315,29 @@ class IntelligenceWindow(QMainWindow):
         page = QWidget()
         layout = QVBoxLayout(page)
         
+        # Dual-dropdown layout
         ctrl_layout = QHBoxLayout()
-        lbl = QLabel("Tyre Degradation ML Predictor:")
-        lbl.setStyleSheet("font-weight:bold; font-size:16px;")
+        
+        lbl_driver = QLabel("Driver:")
+        lbl_driver.setStyleSheet("font-weight:bold; font-size:16px;")
         
         self.tyre_combo = QComboBox()
         self.tyre_combo.addItems(self._get_driver_list())
-        self.tyre_combo.currentTextChanged.connect(self._update_tyre_ml)
         
-        ctrl_layout.addWidget(lbl)
+        lbl_stint = QLabel("Select Tyre Stint:")
+        lbl_stint.setStyleSheet("font-weight:bold; font-size:16px;")
+        
+        self.stint_combo = QComboBox()
+        
+        # Connect the signals so changing driver rebuilds the stint list
+        self.tyre_combo.currentTextChanged.connect(self._on_tyre_driver_changed)
+        self.stint_combo.currentIndexChanged.connect(self._update_tyre_ml)
+        
+        ctrl_layout.addWidget(lbl_driver)
         ctrl_layout.addWidget(self.tyre_combo)
+        ctrl_layout.addSpacing(30)
+        ctrl_layout.addWidget(lbl_stint)
+        ctrl_layout.addWidget(self.stint_combo)
         ctrl_layout.addStretch()
         layout.addLayout(ctrl_layout)
 
@@ -262,66 +345,99 @@ class IntelligenceWindow(QMainWindow):
         self.tyre_ax = self.tyre_canvas.figure.subplots()
         layout.addWidget(self.tyre_canvas)
 
-        self._update_tyre_ml(self.tyre_combo.currentText())
+        # Trigger initial plot
+        self._on_tyre_driver_changed(self.tyre_combo.currentText())
         return page
 
-    def _update_tyre_ml(self, driver):
-        self.tyre_ax.clear()
-        if not driver: return
+    def _on_tyre_driver_changed(self, driver):
+        """Rebuild the stint dropdown menu for the newly selected driver"""
+        self.stint_combo.blockSignals(True)
+        self.stint_combo.clear()
         
-        drv_laps = self.laps.pick_drivers(driver)
-        if drv_laps.empty: return
+        if driver and self.laps is not None and not self.laps.empty:
+            drv_laps = self.laps.pick_drivers(driver)
+            if not drv_laps.empty and 'Stint' in drv_laps.columns:
+                stints = drv_laps['Stint'].dropna().unique()
+                
+                for st in stints:
+                    stint_data = drv_laps[drv_laps['Stint'] == st]
+                    if not stint_data.empty:
+                        compound_series = stint_data['Compound'].dropna()
+                        compound = compound_series.iloc[0] if not compound_series.empty else "UNKNOWN"
+                        num_laps = len(stint_data)
+                        
+                        # Add ALL stints to the UI so the user knows they exist
+                        text = f"Stint {int(st)} - {compound} ({num_laps} laps)"
+                        self.stint_combo.addItem(text, userData=st)
+        
+        self.stint_combo.blockSignals(False)
+        self._update_tyre_ml()
 
-        # Find the longest stint for accurate ML modeling
-        stints = drv_laps.groupby('Stint')
-        longest_stint = None
-        max_laps = 0
-        for stint, data in stints:
-            if len(data) > max_laps:
-                max_laps = len(data)
-                longest_stint = data
-
-        if longest_stint is None or max_laps < 5:
-            self.tyre_ax.text(0.5, 0.5, "Insufficient data for Tyre ML (Need > 5 laps in a stint)", ha='center')
+    def _update_tyre_ml(self, *args):
+        self.tyre_ax.clear()
+        driver = self.tyre_combo.currentText()
+        
+        if self.stint_combo.count() == 0 or not driver:
+            self.tyre_ax.text(0.5, 0.5, "No valid tyre data found for this driver.", ha='center', va='center')
             self.tyre_canvas.draw()
             return
+            
+        stint_num = self.stint_combo.currentData()
+        
+        drv_laps = self.laps.pick_drivers(driver)
+        stint_laps = drv_laps[drv_laps['Stint'] == stint_num]
 
-        # Clean data (Remove in/out laps and massive outliers like SC)
-        clean = longest_stint.pick_quicklaps(1.05)
-        if len(clean) < 4:
-             self.tyre_ax.text(0.5, 0.5, "Stint too chaotic for accurate modeling", ha='center')
-             self.tyre_canvas.draw()
-             return
+        if stint_laps.empty: 
+            return
+
+        compound_series = stint_laps['Compound'].dropna()
+        compound = compound_series.iloc[0] if not compound_series.empty else "UNKNOWN"
+
+        # Attempt to clean data to find "representative" laps (ignore SC, out laps)
+        clean = stint_laps.pick_quicklaps(1.07)
+        
+        # If the stint was extremely chaotic (like a wet race) or very short (like Monaco Lap 1),
+        # the filter might drop everything. Fall back to raw laps.
+        if len(clean) < 3:
+            clean = stint_laps.dropna(subset=['LapTime'])
+
+        # ML requires at least 3 points to draw a quadratic curve.
+        if len(clean) < 3:
+            self.tyre_ax.text(0.5, 0.5, f"Stint too short for ML Prediction.\nOnly {len(clean)} valid lap(s) recorded.\nMathematical models require ≥ 3 laps.", ha='center', va='center', fontsize=12)
+            self.tyre_ax.set_title(f"Tyre ML Predictor: {driver} ({compound} Tyre, Stint {int(stint_num)})", fontsize=14, fontweight='bold')
+            self.tyre_ax.grid(True, linestyle='--', alpha=0.3)
+            self.tyre_canvas.draw()
+            return
 
         # Prepare ML Regression Data
         x = clean['LapNumber'].values
         y = clean['LapTime'].dt.total_seconds().values
         
         # 1. Fit Polynomial Regression (Degree 2 fits tyre wear curves best)
-        # y = ax^2 + bx + c
-        z = np.polyfit(x, y, 2)
-        p = np.poly1d(z)
+        try:
+            z = np.polyfit(x, y, 2)
+            p = np.poly1d(z)
 
-        # 2. Predict the future (Extrapolate 5 laps into the future)
-        future_x = np.arange(x[0], x[-1] + 6)
-        future_y = p(future_x)
+            # 2. Predict the future (Extrapolate 5 laps into the future)
+            future_x = np.arange(x[0], x[-1] + 6)
+            future_y = p(future_x)
+            
+            # Plot ML Trendline
+            self.tyre_ax.plot(future_x, future_y, color='black', linestyle='--', linewidth=2, label="ML Deg. Prediction")
+        except:
+            pass # Failsafe if math breaks on weird data
 
-        # Plotting
+        # Plotting Data
         color = f"#{''.join([f'{c:02x}' for c in get_driver_color(driver, self.session)])}"
         
         # Actual Data Points
         self.tyre_ax.scatter(x, y, color=color, label="Actual Laps", s=50)
         
-        # ML Trendline
-        self.tyre_ax.plot(future_x, future_y, color='black', linestyle='--', linewidth=2, label="ML Deg. Prediction")
-        
         # Critical Drop-off Threshold (The "Cliff")
-        # Define cliff as 2.5 seconds slower than the best lap of the stint
         cliff_time = y.min() + 2.5
         self.tyre_ax.axhline(cliff_time, color='red', linestyle=':', linewidth=2, label="Tyre Cliff Limit")
 
-        compound = longest_stint.iloc[0]['Compound']
-        self.tyre_ax.set_title(f"Tyre ML Predictor: {driver} ({compound} Tyre Stint)", fontsize=14, fontweight='bold')
+        self.tyre_ax.set_title(f"Tyre ML Predictor: {driver} ({compound} Tyre, Stint {int(stint_num)})", fontsize=14, fontweight='bold')
         self.tyre_ax.set_xlabel("Lap Number")
         self.tyre_ax.set_ylabel("Lap Time (s)")
         self.tyre_ax.grid(True, linestyle='--', alpha=0.3)
