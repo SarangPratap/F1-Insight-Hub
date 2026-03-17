@@ -39,7 +39,7 @@ A Python-based Formula 1 data visualization and analytics platform that brings r
 Post-race performance analytics built with **PySide6** and **Matplotlib**. Includes race summary cards (winner, fastest lap, top speed, sectors), fastest lap delta bar chart, and interactive lap progression plots with tyre stint markers.
 
 ### 🤖 RaceIntelligence
-*Future Work* — ML-powered race strategy simulations and predictive modeling using Scikit-learn.
+ML-powered race strategy simulations and predictive modeling using Scikit-learn.
 
 ---
 
