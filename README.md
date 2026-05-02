@@ -35,11 +35,30 @@ A Python-based Formula 1 data visualization and analytics platform that brings r
 ### 🏁 RaceVision
 2D animated race replay with real-time telemetry, powered by the **Arcade** engine. Features include a live leaderboard, animated weather widget, DRS zone overlay, driver info panel with throttle/brake animations, and variable-speed playback (0.1× to 256×).
 
+<img width="1920" height="1080" alt="Screenshot 2026-05-02 130144" src="https://github.com/user-attachments/assets/db35a57f-daac-4944-b9c1-f7024f4707b4" />
+
+
 ### 📈 RaceAnalytics
 Post-race performance analytics built with **PySide6** and **Matplotlib**. Includes race summary cards (winner, fastest lap, top speed, sectors), fastest lap delta bar chart, and interactive lap progression plots with tyre stint markers.
 
+<img width="1302" height="882" alt="Screenshot 2026-05-02 130358" src="https://github.com/user-attachments/assets/e75f4baf-4a97-4f86-89ae-57e81963d9a5" />
+
+<img width="1302" height="882" alt="Screenshot 2026-05-02 130411" src="https://github.com/user-attachments/assets/0d257328-9520-4f18-9a0a-a40053eeb75c" />
+
+<img width="1302" height="882" alt="Screenshot 2026-05-02 130421" src="https://github.com/user-attachments/assets/943d2d3d-3004-4cee-b0fa-a9e23903a852" />
+
+
 ### 🤖 RaceIntelligence
 ML-powered race strategy simulations and predictive modeling using Scikit-learn.
+
+<img width="1627" height="1080" alt="Screenshot 2026-05-02 130454" src="https://github.com/user-attachments/assets/9dad2023-624e-4431-8c0b-d940b3d0d0d3" />
+
+<img width="1627" height="1080" alt="Screenshot 2026-05-02 130522" src="https://github.com/user-attachments/assets/36e68008-1fe7-4c36-b5ea-896bc9631618" />
+
+<img width="1627" height="1080" alt="Screenshot 2026-05-02 130538" src="https://github.com/user-attachments/assets/2d1ccf2a-a9e5-439e-b082-3b0a935bd7b3" />
+
+
+
 
 ---
 
